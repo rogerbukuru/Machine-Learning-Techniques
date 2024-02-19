@@ -220,10 +220,12 @@ ggplot(fitted_configs_random, aes(-D1,-D2), alpha = 0.5 , color = "blue", size =
      ) +
     labs(x = "First principal component", y = "Second principal component", title = "MDS Scaling of US cities using random init") +
     coord_equal()
-
 metric_mds_random$stress
+metric_mds_random$spp
 ```
-Using a random starting point we note that the resulting fit is quite poor. SEA has the poorest fit as firstly it's in the wrong direction and secondly it's closer to LAX and SFO hen it should be. The cities on the east are all poorly represented as well. This shows that a random starting point is not effective. We note as well that the stress value of 0.06023268 is higher than when we use classical scaling as the init config.
+
+Using a random starting point we note that the resulting fit is quite poor. SEA has the poorest fit with a stress per point of 32.75% as firstly it's in the wrong direction and secondly it's closer to LAX and SFO then it should be. The cities on the east are all poorly represented as well. This shows that a random starting point is not effective. We note as well that the stress value of 0.06023268 is higher than when we use classical scaling as the init config.
+
 
 
 ## Notes
