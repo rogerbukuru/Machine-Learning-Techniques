@@ -85,8 +85,10 @@ disparities = pava(sortedDist, decreasing= FALSE)
 # 12: Plot the "SortedDist" against the index order. Overlay the plot with disparity points,
 #     linked by a line. This is known as a Shephard Diagram
 
-plot(sortedDist)
+
+plot(sortedDist, xlab = "Dissimilarities", ylab= "Sorted Distance")
 lines(disparities, type="s")
+title("Shepard Diagram")
 
 # 13: Build Kruskal's stress function with 2 input variables: Y0 distances, disparities.
 #     Save the function as "Stress".
@@ -108,9 +110,10 @@ initial_stress = stress(sortedDiss, disparities)
 
 stressY = function(y, d){
   #'d' is a matrix of original dissimilarities
-  dist_mat = as.matrix((dist(y)))
-  stress_numerator = sum((d-dist_mat)^2)
-  stress_denominator = sum((d)^2)
+  dist_mat = as.vector((dist(y)))
+  d_mat = as.vector(d)
+  stress_numerator = sum((d_mat-dist_mat)^2)
+  stress_denominator = sum((d_mat)^2)
   stress = stress_numerator/stress_denominator
   stress
 }
@@ -118,9 +121,21 @@ stressY = function(y, d){
 # 16: Build a plotting function to plot the 2-dimensional co-ordinate output, 
 #     with text labels. Call this function "PlotCoordinates".
 
-plotCoordinates = function(points){
-  plot(points, xlim = range(points[, 1]), ylim = range(coords[, 2]), xlab = "Dimension 1", ylab = "Dimension 2", main = "2D Coordinates Plot", asp = 1, pch = 19, col = "blue")
-  text(coords, labels = labels, pos = 3) # pos = 3 for labels above the points
+plotCoordinates = function(points, cities){
+  points_with_city = points |>
+                    as.tibble() |>
+                    mutate(
+                      city = cities
+                    )
+  ggplot(points_with_city, aes(-V1, -V2)) +
+    geom_point(size = 3) +
+    geom_text_repel(
+      aes(label = city),
+      size = 5
+    ) +
+    labs(x = "First principal component", y = "Second principal component", title = "US cities") +
+    coord_equal()
+  
  # lines(disparities, type="s")
 }
 
@@ -145,7 +160,15 @@ optim_cg$convergence
 optim_lbggsb$convergence
 optim_sann$convergence
 
+# Not sure about these :()
 stress_nelder_mead = stressY(Y0$points, optim_nelder_mead$par)
+stress_bfgs        = stressY(Y0$points, optim_bfgs$par)
+stress_cg          = stressY(Y0$points, optim_cg$par)
+stress_lbggsb      = stressY(Y0$points, optim_lbggsb$par)
+stress_sann        = stressY(Y0$points, optim_sann$par)
+
+
+plotCoordinates(optim_nelder_mead$par, colnames(cities))
 
 # Note: higher stress AS COMPARED TO the intial configuration DUE TO the 
 #       ranking of distances/disparities.
