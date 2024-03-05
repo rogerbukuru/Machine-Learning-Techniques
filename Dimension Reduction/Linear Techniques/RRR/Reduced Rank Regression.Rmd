@@ -51,6 +51,27 @@ muy
 Create X_c and Y_c i.e centered versions
 
 ```{r, echo = TRUE}
-X_c = apply(X, 1, function(X)(X-mean(X)))
-Y_c = apply(Y, 1, function(Y)(Y-mean(Y)))
+X_c = apply(X, 1, function(X) (X-mean(X)))
+Y_c = apply(Y, 1, function(Y) (Y-mean(Y)))
 ```
+
+Calculate $S_{xx}$ $S_{yy}$ & $S_{xy}$ using cross products of centered data matrices.
+
+```{r, echo = TRUE}
+#Place xc and yc back into form similar to book
+X_c = t(X_c)
+Y_c = t(Y_c)
+
+n = nrow(tobacco)
+Sxx = (1/(n-1))*tcrossprod(X_c)
+Syy = (1/(n-1))*tcrossprod(Y_c)
+Syx = (1/(n-1))*tcrossprod(Y_c, X_c) # Transpose second param i.e Y_c%*%t(X_c)
+Sxy = t(Syx)
+Syx
+
+solve()
+
+```
+
+
+# Note sure understand how A&B come into this picture
