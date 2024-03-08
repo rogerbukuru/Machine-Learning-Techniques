@@ -75,3 +75,27 @@ solve()
 
 
 # Note sure understand how A&B come into this picture
+
+
+
+# PAH
+
+```{r, echo. = TRUE}
+library(rrpack)
+rm(list = ls())
+pah = read.table("../../../Data/RRR/PAH.txt", header =  TRUE, sep = " ") %>%
+      as.tibble()
+
+responses = pah[,1:11] %>%
+            as.matrix()
+
+predictors = pah[, 12:38] %>%
+             as.matrix()
+
+rrr_model = rrr(Y = responses, X = predictors, penaltySVD = "rank")
+
+summary(rrr_model)
+coef(rrr_model)
+plot(rrr_model)
+
+```
