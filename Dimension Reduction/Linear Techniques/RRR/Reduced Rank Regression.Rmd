@@ -53,6 +53,7 @@ Create X_c and Y_c i.e centered versions
 ```{r, echo = TRUE}
 X_c = apply(X, 1, function(X) (X-mean(X)))
 Y_c = apply(Y, 1, function(Y) (Y-mean(Y)))
+
 ```
 
 Calculate $S_{xx}$ $S_{yy}$ & $S_{xy}$ using cross products of centered data matrices.
@@ -69,7 +70,28 @@ Syx = (1/(n-1))*tcrossprod(Y_c, X_c) # Transpose second param i.e Y_c%*%t(X_c)
 Sxy = t(Syx)
 Syx
 
-solve()
+SyxSxxSxy = Syx%*%solve(Sxx)%*%Sxy ### ??
+eigen1 = eigen(SyxSxxSxy)
+
+eigen1
+
+V = eigen1$vectors
+
+V1 = V[,1]
+V2 = V[,2]
+V3 = V[,3]
+A = V
+B = t(V)%*%Syx%*%solve(Sxx)
+
+A1 = matrix(V[,1], ncol = 1, byrow = TRUE) # dim 1 approx
+A2 = matrix(V[,2], ncol = 1, byrow = TRUE) # dim 2 approx
+
+B1 = matrix(B[,1], ncol = 6, byrow = TRUE) # dim 1 approx
+B2 = matrix(B[,2], ncol = 6, byrow = TRUE) # dim 2 approx
+
+C1 = A1%*%B1
+C2 = A2%*%B2
+C3 = A%*%B
 
 ```
 
@@ -81,19 +103,30 @@ solve()
 # PAH
 
 ```{r, echo. = TRUE}
-library(rrpack)
+library(rrr)
 rm(list = ls())
 pah = read.table("../../../Data/RRR/PAH.txt", header =  TRUE, sep = " ") %>%
       as.tibble()
 
-responses = pah[,1:11] %>%
-            as.matrix()
 
-predictors = pah[, 12:38] %>%
-             as.matrix()
+Y = pah[,1:11] %>%
+    as.matrix()
 
-rrr_model = rrr(Y = responses, X = predictors, penaltySVD = "rank")
+colnames(Y) = colnames(pah)[1:11]
 
+X = pah[, 12:38]%>%
+    as.matrix()
+
+Y = t(Y)
+X = t(X)
+
+Y_c = apply(Y, 1, function(Y)(Y-mean(Y)))
+X_c = apply(X, 1, function(X)(X-mean(X)))
+
+
+rrr_model = rrr(x = X_c, y = Y_c, type = "identity")
+
+  
 summary(rrr_model)
 coef(rrr_model)
 plot(rrr_model)
