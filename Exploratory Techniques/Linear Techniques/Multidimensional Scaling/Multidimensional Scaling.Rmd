@@ -1,5 +1,5 @@
 ---
-title: "Multivariate Exam Notes"
+title: "Multidimensional Scaling"
 author: "Roger Bukuru"
 date: "`r Sys.Date()`"
 output: html_document
@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
 
-# Multidimensional Scaling
+# Introduction
 
 ## What is it?
 
@@ -57,6 +57,8 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 ### Example 1: Classical Scaling from first principles
 
+- We perform classical scaling from first principles
+
 ```{r cars}
 rm(list = ls())
 library(dbplyr)
@@ -102,6 +104,8 @@ p
 ```
 
 ### Example II 
+
+- We perform classical scaling from first principles
 
 ```{r}
 
@@ -200,7 +204,12 @@ A configuration of points minimising the metric stress function may be obtained 
   - Compute $d_{ij}$ for all $i$ and $j$ (i.e the Euclidean distance between all pairs of points)
   - Move points in the direction that minimises stress across several random restarts.
   
-#### Example 1:
+#### Example I:
+
+- We perform least-squares scaling from first principles
+- But use the `cmds` package for classical scaling for initial `Y`
+- We make use of constant weights
+- Use an identify function as our $f$ monotonic function
 
 ```{r}
 
@@ -257,11 +266,132 @@ p
 ```
     
 
+#### Example II:
+
+- Here we use the `mds` package to perform least-squares scaling
+- Use constant weights
+- Use an identity monotonic function
+
+```{r code}
+rm(list = ls())
+library(dbplyr)
+library(tidyverse)
+library(ggplot2)
+library(smacof)
+
+set.seed(34)
+data("data_tidy_morse", package = "DataTidy24STA5069Z")
+data_tidy_morse[1:8, 1:8]
+
+morse_mat <- as.matrix(data_tidy_morse)
+image(
+1:36, 1:36, morse_mat,
+main = "Morsecodes raw confusion rates", col = cm.colors(36, 1)
+)
+cn_vec <- colnames(data_tidy_morse)
+cn_vec <- substr(cn_vec, nchar(cn_vec), nchar(cn_vec))
+text(1:36, 1:36, cn_vec)
+
+# We generate the symmetric dissimilarities 
+
+row_mat <- matrix(rep(diag(morse_mat), each = ncol(morse_mat)), byrow = TRUE, nrow = nrow(morse_mat))
+morse_mat_tilde <- row_mat + t(row_mat) - morse_mat - t(morse_mat)
+morse_mat_tilde[1:3, 1:3]
+
+mds_obj <- mds(
+delta = morse_mat_tilde, # dissimilarities
+ndim = 2, # desired dimension of configuration
+type = "ratio", # type of dissimilarity
+init = "torgerson" # initialise with classical scaling
+)
+
+# Extract the coordinates
+
+mds_obj[["conf"]][1:5, ]
+
+# Per-point contribution to total stress:
+
+mds_obj[["spp"]][1:5]
+```
+
+
+#### Evaluating MDS Results
+
+Random in results
+
+- MDS will be sensitive to the initial configuration.
+  - Even if the plots are similar in terms of inter-point proximity, their orientation may be different - especially if using a random initialisation
+  - At a minimum, set the seed. One can also choose the configuration that minimises stress.
+- Stress is a measure of how well the distances between points in the lower-dimensional space (the MDS configuration) match the original dissimilarities (or distances) in the high-dimensional space.
+  - What does the per-point contribution in total stress mean ?
+    - High contributions to stress mean that these are far from the original dissimilarities
+    - Low contributions to stress mean that these are far near the original dissimilarities and therefore are good estimations in the lower dimensional space
+
+#### Sammon Mapping
+
+- We downweight larger original distances ($w_{ij} = \frac{1}{\sum_{i<j}\delta_{ij}^2}$)
+
+```{r}
+rm(list = ls())
+library(dbplyr)
+library(tidyverse)
+library(ggplot2)
+library(smacof)
+
+#MASS::sammon(d, y = cmdscale(d,k), k = 2, niter = 1e3, trace = TRUE, magic = 0.2, tol = 1e-4)
+
+set.seed(12394)
+data("data_tidy_sa_distance", package = "DataTidy24STA5069Z")
+sammon_obj <- MASS::sammon(data_tidy_sa_distance |> as.matrix())
+
+plot_tbl <- sammon_obj$points |>
+tibble::as_tibble() |>
+dplyr::mutate(
+city = data_tidy_sa_distance |>
+colnames()
+)
+p <- ggplot(plot_tbl, aes(V1, V2)) +
+geom_point(size = 3) +
+ggrepel::geom_text_repel(
+aes(label = city), size = 3
+) +
+  coord_equal()+
+  xlab("First dimension") +  # Label for the x-axis
+  ylab("Second dimension") +  # Label for the y-axis
+  ggtitle("Kingship MDS")  # Main title of the plot
+p
+```
+## Non-Metric MDS
+
+- In non-metric MDS, we do not preserve the actual dissimilarities, but only the ranks of the dissimularities
+- Dissimilarities can be strictly ordered from smallest to largest
+$\delta_{i_1,j_1} < \delta_{i_2,j_2}< ... <\delta_{i_m,j_m}$
+
+Where $(i_1,j_1)$, $(i_m,jm)$ indicates the pair of entities having the smallest and largest dissimilarities respectively
+- Nonmetric scaling finds a lower-dimensional space such that the distances 
+$d_{i_1,j_1} < d_{i_2,j_2}< ... <d_{i_m,j_m}$
+matches exactly the ordering of the dissimilarities.
+- Since a plot of the configuration distances $d_{ij}$ against their rank order does not necessarily produce a monotonically looking scatterplot, thereby violating the monotonic condition we approximate the $d$ by $\hat{d}$.
+
+- Non-metric MDS aims not to approximate the actual dissimilarities, but merely preserve the ranks of the dissimilarities.
+- The configuration is not optimised so that the configuration distances ($d_{ij}$) approximate the actual dissimilarities ($\delta_{ij}$) as closely as possible, but rather so that the configuration distances increase monotonically with the actual dissimilarities.
+- To do this, we essentially do the following
+  - Generate an initial configuration.
+  - Until convergence
+    - Fit a monotonically-increasing function of configuration distances against the ranks of the dissimilarities
+    - Adjust the configuration distances to more closely match the fitted values.
+## Shepard's Diagram
+
 # Appendix
 
 ## LLM Finetuning
 
-- If data represents dissimilarities include MDS as part of EDS process.
+- If data represents dissimilarities include MDS as part of the EDA process.
 - Use this to visualize the data.
 - High dimensional dissimilarities or similarities data.
 - Symmetric data shape i.e $nxn$ 
+- We can create dissimilarities from existing data in order to create clusters.
+- Can be use as a form of clustering.
+- Dissimilarities calculated OOB ? i.e don't have original data, we simply have dissimilarity data.
+  - This means that the data that we start the technique with is the dissimilarity data and not X
+
