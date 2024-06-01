@@ -1,0 +1,267 @@
+---
+title: "Multivariate Exam Notes"
+author: "Roger Bukuru"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Multidimensional Scaling
+
+## What is it?
+
+- Dimension reduction technique that represents dissimilarity data in a low-dimensional space typically for visulation
+- Uses dissimalarity or similarity data as input as opposed to the original inputs i.e X like in PCA
+- Scale of measurements
+  - Ratio: Natural zero exists e.g height
+  - Interval: Natural does not exists e.g temperature
+  - Rank
+    - Ordinal
+    - Nominal
+    
+## Dissimilarity/Similarity Measure and Proximity Matrix
+
+- Dissimilarity Measures
+  - Minokowski distance:
+    - $\delta_{ij} = (\sum_{i}^{k} |x_{ik}-x_{jk}|^{p})^\frac{1}{p}$
+    - $p=1$: L1 norm
+    - $p=2$: L2 norm
+- Similarity Measures
+  - Centered dot product
+  - Correlation coefficient
+  
+## Categories
+
+- Metric MDS
+  - Classical Scaling
+  - Least-squares 
+- Non-Metric MDS
+
+## Classical Scaling
+
+- Variant of metric MDS that finds the optimal low-rank/dim configuration of points such that their centered inner products match those in the original space as closely as possible
+- Formula: dissimilarities > Centered Inner Products > Low Rank Config
+- If the dissimilarities are Euclidean, then the solution matches that of principal components ??
+
+### Procedure for Classical Scaling
+
+1. Find the dissimilarities matrix $\Delta$ and do not have access to the original data matrix $X$
+2. From $\Delta$ we calculate $B$ of centered dot products where $b_{ij}=x^T_ix$ for ${x_i}$ ${x_j}$ the $i-th$ and $j-th$
+3. We find the rank $t$  matrix $B^*$ where the $L2$ norm from $B$ is smallest
+4. The minimising configuratioon is a function of the SVD of $B= HAH$.
+  - $A = \frac{1}{2}\delta_{ij}^2$
+
+
+### Example 1: Classical Scaling from first principles
+
+```{r cars}
+rm(list = ls())
+library(dbplyr)
+library(tidyverse)
+library(ggplot2)
+
+
+Delta_mat <- structure(c(0, 93, 82, 133, 93, 0, 52, 60, 82, 52, 0, 111, 133,60, 111, 0), dim = c(4L, 4L))
+
+Delta_mat |> signif(2) # rounds number
+
+# Calculate A matrix
+
+A_mat = -0.5 * Delta_mat^2
+A_mat |> signif(2)
+
+# Calculate B matrix where H = I -1/n11^T
+
+H = diag(4) - 1/4*matrix(1,4,4)%*%t(matrix(1,4,4))
+B_mat = H%*% A_mat %*% H
+B_mat |> signif(3)
+
+eig_obj = eigen(B_mat)
+
+# Calcualte the princiiapl coordiante Y= V eigen values of B
+
+Y_mat <- eig_obj$vectors %*% diag(sqrt(eig_obj$values))
+Y_mat |> signif(2)
+plot_tbl = Y_mat %>% 
+           as.tibble() %>%
+            mutate(
+              city = c("Kobenhavn", "Arhus","Odense", "Aalborg")
+            )
+
+p = ggplot(plot_tbl, aes(V1, V2))+
+    geom_point(size=3)+
+    ggrepel::geom_text_repel(aes(label=city), size=3)+
+    coord_equal()+
+    xlab("First principal coordinate") +  # Label for the x-axis
+    ylab("Second principal coordinate") +  # Label for the y-axis
+    ggtitle("Classical scaling of Danish cities")  # Main title of the plot
+p
+```
+
+### Example II 
+
+```{r}
+
+rm(list = ls())
+library(dbplyr)
+library(tidyverse)
+library(ggplot2)
+
+if (!requireNamespace("remotes", quietly = TRUE)) {
+install.packages("remotes")
+}
+if (!requireNamespace("DataTidy24STA5069Z", quietly = TRUE)) {
+remotes::install_github("MiguelRodo/DataTidy24STA5069Z")
+}
+data("data_tidy_sa_distance", package = "DataTidy24STA5069Z")
+
+# Step 1 calculate or obtain the proxmity matrix
+
+Delta_mat = as.matrix(data_tidy_sa_distance)/1e3 # Scal and the data
+
+Delta_mat[1:3, 1:3] |> signif(2)
+n = nrow(Delta_mat)
+# Calculate A
+
+A_mat = -0.5 * Delta_mat^2
+A_mat[1:3, 1:3] |> signif(2)
+
+# Calculate B = HAH where H = I-1/n11^T
+
+H_mat = diag(n) - 1/n*matrix(1,n,n)
+B_mat = H_mat%*%A_mat%*%H_mat
+B_mat[1:3,1:3] |> signif(3)
+
+eigen_obj = eigen(B_mat)
+Y_mat = eigen_obj$vectors%*%diag(sqrt(eigen_obj$values))
+
+plot_tbl = Y_mat %>% 
+           as.tibble() %>%
+            mutate(
+              city = data_tidy_sa_distance |> colnames()
+            )
+
+p = ggplot(plot_tbl, aes(V1, V2))+
+    geom_point(size=3)+
+    ggrepel::geom_text_repel(aes(label=city), size=3)+
+    coord_equal()+
+    xlab("First principle coordinate") +  # Label for the x-axis
+    ylab("Second principle coordinate") +  # Label for the y-axis
+    ggtitle("Classical scaling of SA cities")  # Main title of the plot
+p
+
+```
+
+## Least Squares Scaling
+
+
+- Has a different objective function 
+For a matrix of dissimilarities $\Delta=(\delta_{ij})$ a matrix of weights $W=(w_{ij})$ and a monotonic function $f$, the least-squares scaling algorithm minimises the objective function
+$\mathcal{L}_f(Y_1, Y_2, \ldots, Y_n; W, f) = \sum_{i<j}^{n} w_{ij} (d_{ij} - f(\delta_{ij}))^2$
+with respect to the $n$ $t$-dimensional points $y_1...y_n$ where $d_{ij}=||y_i-y_j||$ for $||\cdot||$
+- The square root $\mathcal{L_f}$ is typically referred to as the stress function. If f does not merely preserve ranks, then it is the metric stress function.
+- Classical scaling v.s least squares scaling
+  - Values approximated
+    - In classical scaling, we approximate centered inner products
+    - In least-squares scaling, we approximate dissimilarities directly
+    - Even when the dissimilarities are Euclidean distances, the two methods will not give the same answer.
+  - Flexibility
+    - Least-squares scaling is more flexible
+      - It can handle non-Euclidean distance dissimilarities (without "breaking" an assumption)
+  - Optimisation approach
+    - Least-squares scaling an algebratic solution and so requires numerical optimisation
+    
+- Transformations of original dissimilarities
+  - In least-squares scaling, we may approximate not merely the dissimilarities themselves, but monotonic transformations of them, i.e approximate $f(\delta_{ij}$ rather than $\delta_{ij}
+  - Choices for $f$:
+    - Linear transformation: $f(\delta_{ij} = \alpha + \beta\delta_{ij}$
+      - For $\alpha = 0$ we merely rescale the dissimilarities and preserve the ratio scale.
+      - For $\alpha > 0$ we effectively push apart the dissimilarities. This may help avoid "squashing" nearby points together wehn another point is very far away. However we lose the ratio scale and then merely have the interval scale.
+      - Other to pull in large values e.g log, square root, etc
+      - Monotonic rank-preserving transformations. We loose the interval scale, but less sensitive to outliers => non-metric MDS
+- Choice of weights
+  - Two common choices are:
+    - Const weights: $w_{ij} = \frac{1}{\sum_{i<j}\delta^2_{ij}}$
+      - May help avoid computational precision errors
+    - Down-weight larger original distances $w_{ij} = \frac{1}{\sum_{i<j}\delta^2_{ij}}$
+      - This may useful when we have a a few very large dissimilarities that we wish to down-weight.
+      - This produces a Sammon mapping
+  - Other variations are possible as well.
+  
+### Least-Squares Optimisation Algorithm
+
+A configuration of points minimising the metric stress function may be obtained as follows:
+
+1. Assign points to initial coordinates (may be arbitrary, or that produced by classical scaling)
+2. Repeat the following until convergence
+  - Compute $d_{ij}$ for all $i$ and $j$ (i.e the Euclidean distance between all pairs of points)
+  - Move points in the direction that minimises stress across several random restarts.
+  
+#### Example 1:
+
+```{r}
+
+rm(list = ls())
+library(dbplyr)
+library(tidyverse)
+library(ggplot2)
+
+if (!requireNamespace(
+"smacof", quietly = TRUE
+)) {
+install.packages("smacof")
+}
+data(
+"kinshipscales", package = "smacof"
+)
+data(
+"kinshipdelta", package = "smacof")
+
+kinshipscales [1:4, ]
+kinshipdelta[1:6, 1:6]
+
+# First, we write the stress function
+calc_stress = function(y, delta_mat, dim=2){ # dim = specificies the number of dimension we reduced the dimension
+  Y_mat = matrix(y, ncol=dim)
+  D_mat = as.matrix(dist(Y_mat)) 
+  error_mat = ((D_mat - delta_mat)^2)[lower.tri(D_mat)] # using identity monotonic function f 
+  weight = 1 / sum(D_mat[lower.tri(D_mat)]^2) # why D-mat and not 
+  sum(error_mat) * weight
+}
+# We generate an initial configuration using classical scaling:
+y_vec = cmdscale(kinshipdelta) |> as.vector() # by default cmdscale returns transformed data in 2 dimensions
+# we optimise
+optim_obj = optim(y_vec, calc_stress, delta_mat = kinshipdelta)
+Y_mat = matrix(optim_obj$par, ncol = 2)
+
+plot_tbl = Y_mat %>%
+           as.tibble() %>%
+           mutate(
+             familial_term = kinshipdelta |> colnames()
+           )
+p = ggplot(plot_tbl, aes(V1,V2))+
+    geom_point(size = 3)+
+    ggrepel::geom_text_repel(
+      aes(label = familial_term),
+      size = 3
+      )+
+  coord_equal()+
+    xlab("First dimension") +  # Label for the x-axis
+    ylab("Second dimension") +  # Label for the y-axis
+    ggtitle("Kingship MDS")  # Main title of the plot
+p
+
+```
+    
+
+# Appendix
+
+## LLM Finetuning
+
+- If data represents dissimilarities include MDS as part of EDS process.
+- Use this to visualize the data.
+- High dimensional dissimilarities or similarities data.
+- Symmetric data shape i.e $nxn$ 
