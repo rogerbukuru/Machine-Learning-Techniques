@@ -1,0 +1,282 @@
+---
+title: "Linear and Non-Linear Principal Component Analysis Techniques"
+author: "Roger Bukuru"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Introduction
+
+- Projection of high-dimensional data into a lower-dimensional subspace by creating a
+reduced set of linear transformations of the input variables, also called "feature
+extraction".
+- An eigenvalue-eigenvector problems but can also be viewed as special case of multivariate reduced rank regression.
+- Aimed at finnding linear orthogonal combinations (projections) of the input variables
+that are ordered by decreasing variance.
+- Main aim is that of dimension reduction.
+- Can also be used to discover important features of the data using graphical displays of the principal component scores.
+
+Given the random r-vector $X=(X_{1},...,X_{r})^T$, with mean $u_x$ and covariance matrix $\Sigma_{XX}$, PCA seeks to replace the set 
+
+# Classic PCA (Linear Technique)
+
+- **PCA from eigen decomposition**
+
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(dplyr)
+library(rrr)
+library(ggplot2)
+library(scatterplot3d)
+library(plotly)
+
+
+data("iris")
+
+iris_data = iris %>%
+       as.tibble()  
+head(iris)
+
+
+x  = iris_data[,1:4]
+# Center data
+x_c = apply(x, 2, function(x)(x-mean(x)))
+x_cov = cov(x)
+
+eigen_decomp = eigen(x_cov)
+
+eigenvectors = eigen_decomp$vectors # Principal Components
+eigenvalues  = eigen_decomp$values
+pca_scores   = t(eigenvectors%*%t(x_c)) %>% as.tibble()
+
+pca_components_variance = (eigenvalues)/sum(eigenvalues)
+pca_components_variance_df = data.frame(`PC` = 1:length(pca_components_variance), `Var Explained` = pca_components_variance) %>% as.tibble()
+
+# Plot Scree Plot
+ggplot(pca_components_variance_df, aes(x = PC, y = Var.Explained)) +
+  geom_point() + # Add points
+  geom_line() + # Connect points with lines
+  xlab("Principal Component") +
+  ylab("Proportion of Variance Explained") +
+  ggtitle("Scree Plot") +
+  theme_minimal() # Using a minimal theme for aesthetics
+
+# Plot PCA Scores
+ggplot(data = pca_scores, mapping = aes(x = V1, y = V2))+
+      geom_point()
+```
+
+- **PCA using in built package, EigenDecomp and SVD**
+
+- Built in package uses eigen value decomposition, so eigenvalues are variances
+  - Actually returns the squared eigenvalues under $sdev$
+- SVD decomposition $v$ is the eigenvectors and $d$ has the eigenvalues on it's diagonal, these need to be squared to get the variance
+
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(dplyr)
+library(rrr)
+library(ggplot2)
+library(scatterplot3d)
+library(plotly)
+
+data("iris")
+
+iris_data = iris %>%
+       as.tibble()  
+head(iris)
+
+
+X  = iris_data[,1:4]
+
+classic_pca = prcomp(X, retx = TRUE, center = TRUE, scale. =  FALSE)
+pca_components = classic_pca$rotation
+pca_scores = classic_pca$x%>% # Linear combination of centered data and eigenvectors
+             as.tibble()
+pca_classic_variance_explained = (classic_pca$sdev^2)/sum(classic_pca$sdev^2)
+pca_classic_variance_explained_df = data.frame(`PC` = 1:length(pca_classic_variance_explained), `Var Explained` = pca_classic_variance_explained) %>% as.tibble()
+
+summary(classic_pca)
+# Plot Scree Plot
+ggplot(pca_classic_variance_explained_df, aes(x = PC, y = Var.Explained)) +
+  geom_point() + # Add points
+  geom_line() + # Connect points with lines
+  xlab("Principal Component") +
+  ylab("Proportion of Variance Explained") +
+  ggtitle("Scree Plot") +
+  theme_minimal() # Using a minimal theme for aesthetics
+
+# Plot PCA Scores
+ggplot(data = pca_scores, mapping = aes(x = PC1, y = PC2))+
+      geom_point()
+```
+
+### Linear PCA Under RRRR
+
+
+# Non-Linear PCA Techniques
+
+- We have little visual guidance to help us identify any meaningful low-dimensional structure hidden in high-dimensional data.
+- The linear projection methods are useful in discovering low-dimensional structure when the data actually lie in a linear (or approximately linear) lower-dimensional subspace (called a manifold $M$) of input space $R^d$
+- But linear methods will not be able to capture the curvature of the data. What can we do if we know or suspect that the data actually lie on a low-dimensional nonlinear manifold, whose structure and dimensionality are both assumed unknown ?
+- When a linear representation of the data is unsatisfactory, we turn to specialized methods designed to recover nonlinear structure.
+  - identify the nonlinear manifold $M$
+
+  
+
+## Polynomial PCA
+
+- Idea of generalizing PCA to a nonlinear case.
+- We transform the set of input variables using a quadratic, cubic, or higher degree polynomial, and then apply linear PCA.
+- The resulting polynomial PCA comes down to eigen analysis, by this time attention is focused on the value of the smallest few eigenvalues for nonlinear dimensionality reduction
+- If for example we have bivariate data and the data follow an exact quadratic curve, the smallest eigenvalue of the covariance matrix of the extended vector will be zero and the score of the last principal component will be constant with a value of zero
+
+### Polynomial PCA Steps
+
+- Extend the input variables to an $s$ degree polynomial i.e increase the dimension of the input space
+- From the extended input space perform linear PCA
+  - The idea is that in a some input space, the data will be linear i.e the points, such that we can use a linear transformation within this space to reduce the dimension.
+
+
+- **Example with no noise**
+
+```{r}
+
+rm(list = ls())
+library(tidyverse)
+library(dplyr)
+library(rrr)
+library(ggplot2)
+library(scatterplot3d)
+library(plotly)
+
+n = 201
+x1 = seq(from = -1.5, to = 0.5, by = 0.01)
+x2 = 4*x1^2 + 4*x1 + 2
+plot(x1,x2) # initial plot of the data (this is the initial input space, where we suspect that the relationship in the data is non-linear)
+
+# We can start by performing standard linear PCA
+original_data = data.frame(x1,x2)
+linear_pca = prcomp(original_data, center = TRUE)
+summary(linear_pca)
+
+# We extend the data
+data_transformed = data.frame(x1,x2, x1^2, x2^2, x1*x2) # quadratic approximation using polynomial PCA
+svd_output = svd(cov(data_transformed))
+
+principal_components = round(svd_output$v,3)
+eigenvalues = round(svd_output$d,3)
+# Observe that the 
+principal_components
+eigenvalues
+
+pca.transformed = prcomp(data_transformed) # PCA on the var-cov matrix
+summary(pca.transformed)
+variance.transformed = round(pca.transformed$sdev^2,4)
+
+## Loadings (PCA components)
+loadings.transformed = round(pca.transformed$rotation,4)
+
+## PCA scores
+scores.transformed = pca.transformed$x
+round(scores.transformed[5], 3)
+pairs(scores.transformed[,1:4])
+
+```
+
+**From the above**
+
+- The last component eigenvalue is equal to 0
+- The hyperplane defined by zero eigenvalue (5th principle component) is
+0 = -0.696$x_1$ + 0.174$x_2$ - 0.696$x_1^2$
+$x_2 = 4x_1^2 + 4x_1$ which recovers the original quadratic curve
+- Scatterplot matrix of the pairwise scores of the first four principal components from quadratic PCA. The last principal component has all its values equal to zero and is not displayed
+- After performing the extension and then applying PCA, we note that the last few eigenvalues are small with the last being zero, which indicates that the original data lies on a non-linear space, and in this case a quadratic space.
+
+**Interpretation of pairwise scatterplot matrix**
+
+- C1 vs. C2: Shows a non-linear, almost parabolic relationship. This indicates that the first and second principal components are capturing some quadratic structure in the data.
+
+- C1 vs. C3: Exhibits a similar non-linear relationship, suggesting that C3 also captures additional quadratic interactions not fully explained by C1.
+
+- C1 vs. C4: This scatterplot shows a more complex, possibly intertwined structure, indicating even higher-order interactions captured by C4.
+
+- C2 vs. C3: Displays another non-linear relationship, highlighting that C2 and C3 capture distinct but related aspects of the quadratic structure in the data.
+
+- C2 vs. C4: The pattern here suggests a complex interaction, reinforcing the idea that C4 is capturing variance not fully explained by the first three components.
+
+C3 vs. C4: Shows an intricate, possibly circular pattern, indicating that C3 and C4 are capturing unique quadratic effects in the data.
+
+- Example with noise
+
+```{r}
+
+rm(list = ls())
+library(tidyverse)
+library(dplyr)
+library(rrr)
+library(ggplot2)
+library(scatterplot3d)
+library(plotly)
+
+set.seed(5)
+n = 201
+x1 = seq(from = -1.5, to = 0.5, by = 0.01)
+x2 = 4*x1^2 + 4*x1 + 2
+
+# Suppose now that our original data had noise
+
+z = rnorm(n,0, 1)
+x1_noisy = x1 + z
+x2_noisy = x2 + z
+plot(x1_noisy,x2_noisy)
+
+data_transformed_noisy = data.frame(x1_noisy, x2_noisy, x1_noisy^2, x2_noisy^2, x1_noisy * x2_noisy)
+
+pca.transformed_noisy = prcomp(data_transformed_noisy) # PCA on the var-cov matrix
+summary(pca.transformed_noisy)
+variance.transformed_noisy = round(pca.transformed_noisy$sdev^2,4)
+variance.transformed_noisy
+
+## Loadings (PCA components)
+loadings.transformed = round(pca.transformed_noisy$rotation,4)
+loadings.transformed
+
+## PCA scores
+scores.transformed_noisy = round(pca.transformed_noisy$x,4)
+
+pairs(scores.transformed_noisy[,1:5])
+
+```
+
+**We observe the following**
+
+- The eigenvalues are each greater than the respective eigenvalues from the noisless case, with the smallest eigenvalue now 0.0303 (this could be different for you unless if you use set.seed()). 
+- As we would expect some of the well-defined patterns in the scatterplot matrix become blurred in the noisy case.
+- Even if we significantly reduce the variance of the added noise component, the results of the quadratic PCA will be strongly affected by the noisiness of the data
+
+What are some challenges with polynomial PCA ?
+- Standardization of all extended data matrix may be desirable
+- The size of the extended vector for quadratic PCA increases quickly with increasing dimensions and for high degrees of polynomial
+- Therefore sample size has to be much larger than the dimensionality of the extended data matrix.
+  - If this is not the case we can face the following issues
+    - Effect bias variance tradeoff, if violated, we will have low bias in-sample data due to overfitting and high variance with out of sample data 
+    - In high dimension, data tend to become sparse, making it difficult to find meaningful structures or patterns.
+    
+## Kernel PCA
+
+
+
+# Appendix
+
+## LLM Finetuning
+
+- Check if inputs are correlated before performing PCA
+- Check if PCA is appropriate for the data, by analysis the first few principal components  in terms of linearity
+- Standardize data by centering and scaling (unit variance)

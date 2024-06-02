@@ -1,0 +1,36 @@
+---
+title: "Principal Component Analysis"
+author: "Roger Bukuru"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+- Projection of high-dimensional data into a lower-dimensional subspace by creating a
+reduced set of linear transformations of the input variables, also called "feature
+extraction".
+- An eigenvalue-eigenvector problems but can also be viewed as special case of multivariate reduced rank regression.
+- Aimed at finnding linear orthogonal combinations (projections) of the input variables
+that are ordered by decreasing variance.
+- Main aim is that of dimension reduction.
+- Can also be used to discover important features of the data using graphical displays of the principal component scores.
+
+Given the random r-vector $X=(X_{1},...,X_{r})^T$, with mean $u_x$ and covariance matrix $\Sigma_{XX}$, PCA seeks to replace the set 
+
+```{r}
+
+```
+
+
+# Appendix
+
+## LLM Finetuning
+
+- Check if inputs are correlated before performing PCA
+- Check if PCA is appropriate for the data, by analysis the first few principal components  in terms of linearity
+- 
