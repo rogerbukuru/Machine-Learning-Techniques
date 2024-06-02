@@ -1,0 +1,344 @@
+---
+title: "Support Vector Machines"
+author: "Roger Bukuru"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+
+# Introduction
+
+- Support vector machines (SVMs) are a group of supervised machine-learning models that can be used for classification and regression. SVMs are among the most popular standard tools for classification.
+  - SVMs seek an optimal hyperplane for separating two classes in a multidimensional space
+  - For two variables (features, independent variables), the surface is a line $w_1x_1+w_2x_2+b=0$
+  - For three variables (features, independent variables), the surface is a plane $w_1x_1+w_2x_2+w_3x_3+b=0$
+  
+## Maximal Margin Classifier
+
+- We start by using 1 independent variable and binary classification $y\in\{1,-1\}$ 
+
+```{r}
+rm(list = ls())
+library(ggplot2)
+
+data("iris")
+p1 = ggplot(data = iris[1:100,],aes(x = Petal.Length, y = c(0)))+
+            geom_point(aes(color = Species))
+
+boundaries = data.frame(seperator = c(2,2.6))
+
+p1+geom_point(data = boundaries, aes(x=boundaries$seperator[1]), color = "blue", size =3)+
+  geom_point(data=boundaries, aes(x=boundaries$seperator[2]), color = "#F066EA", size = 3)
+
+#p2 = ggplot(data=iris[1:100,], aes(x=Petal.Width, y=Petal.Length))+
+           geom_point(aes(color=Species))
+
+#p2
+```
+
+- Best decision boundary: Maximal Margin Classifier
+
+  - The best decision boundary is the one that maximizes the margin and is called the "maximal margin classifier"
+  - Maximal margin classifier lies half way between the two clusters, why ? The distance of on observation from the classifier can be seen as a measure of our confidence that the observation was correctly classified.
+  - Maximizing margins minimizes complexity. "Eliminate" overfitting.
+  - It is clear from the plot that the Maximal Margin Classifier is the furthest to both set of points. Ths is a key feature of SVMs     where the algorithm finds a decision boundary that maximizes the margin.
+
+Let's now look at a 2D example
+
+- We will now use the $Petal.Length$ and $Petal.Width$ variables(x) to classify the flower $Species(y)$ for the first 100 observations so that the problem is a binary classification. Let us visualize our data.
+
+
+```{r}
+rm(list = ls())
+library(ggplot2)
+
+data("iris")
+p2 = ggplot(data = iris[1:100,], aes(x=Petal.Width, y=Petal.Length))+
+     geom_point(aes(color= Species))
+p2                
+```
+  
+- There are infinite number of lines that separate the group of points $x_i$ for which $y_i = -1$ from the points for which $y_i = +1$ 
+- Which one is the best ?
+
+Maximal Margin Classifier - Which Line ?
+- Suppose that is possible to construct a line that separates the training observations perfectly according to their class labels.
+- Then the separating line has the property that
+ - $b + w_{1}x_{i1} +. w_{2}x_{i2} > 0 if y_i = +1$
+ - $b + w_{1}x_{i1} +. w_{2}x_{i2} < 0 if y_i = -1$
+
+Equivalently, $y_i(b+w_1x_{i1} + w_2x_{i2})$
+- NB: Line is defined with the folowing:
+  - $b+w_1x_{i1} + w_2x_{i2} = 0$
+  - $w^Tx+b=0$ (here $w$ is always normal to the hyperplane)
+  - If $b=0$ then the line goes through the origin
+  - But how do we find the values of $b,w_1,w_2$
+
+## Construction of the maximal margin
+
+- We start by constructing the the boundary lines that separates the $+1$ and $-1$ points these are known as the support vector lines $H_1$ and $H_2$
+- Then we find the closest points in Convex Hulls
+- Points that touch the boundary lines are the support vectors
+- We then construct the soft marginal line $b+w_1x_{i1} + w_2x_{i2} = 0$
+- Data closes to the hyperplane are called support vectors
+- The plane $H_0$ is the median in between the support vectors $H_1$ and $H_2$ and it is called the Maximal Margin Classifier with
+  $b+w_1x_{i1}+w_2x_{i2} = 0$
+- The "Margin" is the distance between $H_1$ and $H_2$ and it is calculated as follows:
+  $2M=\frac{2}{||w||}$
+- We want to find the "maximum-margin hyperplane" that divides the groups, so that the distance $2M$ between the two hyperplanes $H_1$ and $H_2$ is maximized
+- Optimization problem!
+- Maximal margin hyperplane is extremely sensitive to a change in a single observation: Overfit.
+
+## Soft Margin Classifier
+
+- In this case, we might be willing to consider a classifier based on a hyperplane that does not perfectly separate the two classes, in the interest of:
+  - Greater robustness to individual observations
+  - Better classification of most of the training observations
+- That is, it could be worthwhile to misclassify a few training observations in order to do a better job in classifying the remaining observations
+- The support vector classifier, sometimes called a soft-margin classifier, exactly does this.
+- Slack variables $\zeta_i$ can be added to allow misclassification of difficult or noisy examples
+- Slack variables $\zeta_i$ = support vectors
+  - Slacks variables defined as $\zeta = (\zeta_1, \zeta_2,...\zeta_n)\ge0$
+  - Data points are correctly classified, for $\zeta_i=0$ and the data points are either on the margin (SV) or on the correct side of the margin
+  - Our goal is now to maximize the margin while softly penalizing points that lie on the wrong side of the margin boundary: Use of $C$ cost
+  
+## Support Vectors
+
+- Observations that lie directly on the margin, or on the wrong side of the margin for their class, are known as support vectors
+- Support vectors do affect the support vector classifier. Others that are on the correct side of the margin do no affect the SVC
+- A direct implication is that the more the support vectors, the better the generalizability of the boundary
+- The number of support vectors is controlled by $V$
+- When $V$ is large, then the margin is wide, many observations violate the margin, and so there are many support vectors. In this case, many observations are involved in determining the hyperplane.
+
+**Construction of the Soft Margin**
+
+- The margin $2M$ is maximized subject to a toal budget of $\sum\zeta_{i}^*\le V$, where $V$ is the total number of violations and $\sum\zeta_{i}^*$ is the total distance of points on the wrong side of their margin.
+- V is the amount that the margin can be violated by the $n$ observations
+- If $V=0$, no budget for violations $\zeta=(\zeta_1, \zeta_2,...\zeta_n) = 0$ and this is simply the maximal margin hyperplane optimization (assuming a perfect plane exists)
+- If $V>0$, no more than $V$ observations can be on the wrong side of the hyperplane, because if an observation is on the wrong side of the hyperplane, then $\zeta_i>1$
+- As V increases, we are more tolerant of violations to the margin, hence wider margin
+- As V decreases, we are less tolerant, hence narrower margin
+- In practice, we choose $V$ via cross-validaton
+- Counting support vectors ??
+
+- Cost vs the errors
+  - The higher the cost is, the number of support vectors allowed is fewer. More precise estimates. Therefore low bias, however overfitting which means high variance. Low cost means less strict predictiom resulting in higher bias. We examine the lowest error for the validation set.
+
+
+### Examples
+
+```{r}
+rm(list = ls())
+library(e1071)
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+
+#iris_data = data("iris")
+iris_data = iris%>%
+       as_tibble() %>%
+       mutate(Species = as.factor(Species))
+
+
+svm_model = svm(Species ~ Petal.Width + Petal.Length,
+                data = iris_data[1:100,],
+                type= "C-classification",
+                kernel = "linear", # type of hyperplane
+                scale = FALSE,
+                cost =2,
+                )
+
+svm_model
+
+# Obtain the index of support vectors in dataset
+svm_model$index
+
+# Obtain the support vectors
+svm_model$SV
+
+#Obtain the intercept of the model
+svm_model$rho
+
+#Weighting coefficients of the support vectors, the magnitude represents the importance of the SV and the sign represents which side of the boundary the vectors are.
+svm_model$coefs
+
+plot(svm_model, iris_data[1:100, c(3:4,5)])
+  
+```
+  
+- It is clear that there are 2 support vectors and these are marked with a $X$, however, this plot is less informative so let us do our own plot  
+
+#### Building a Support Vector Classifier in R: Maximal Margin
+
+```{r}
+rm(list = ls())
+library(e1071)
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+
+iris_data = iris%>%
+       as_tibble() %>%
+       mutate(Species = as.factor(Species))
+
+p2 <- ggplot(data=iris[1:100,], aes(x=Petal.Width, y =Petal.Length))+
+  geom_point(aes(color = Species))             
+p2 
+
+
+svm_model = svm(Species ~ Petal.Width + Petal.Length,
+                data = iris_data[1:100,],
+                type= "C-classification",
+                kernel = "linear", # type of hyperplane
+                scale = FALSE,
+                cost =2,
+                )
+
+#identify support vectors
+df_sv <- iris[svm_model$index,]
+
+# and mark the support vectors in the previous plot
+p3 <- p2 + geom_point(data = df_sv, aes(x=Petal.Width, y=Petal.Length), color = "purple", size = 4, alpha = 0.5) 
+p3
+#build weight vector
+w <- t(svm_model$coefs) %*% svm_model$SV # ????????
+
+#calculate slope and save it to a variable
+slope_1 <- -w[1]/w[2]
+
+# And finally we need to get the intercept value of the decision boundary, calculate intercept and save it to a variable
+intercept_1 <- svm_model$rho/w[2] 
+
+# Add decision boundary with geom_abline() to the plot, using the slope and intercept calculated.
+
+p3 <- p3 + geom_abline(slope = slope_1, intercept = intercept_1)
+
+p3
+
+#Margins parallel to decision boundary, offset by 1/w[2] on either side of it. So we can add them as well:
+#add margins to plot
+
+p3 <- p3 + 
+    geom_abline(slope = slope_1, intercept = intercept_1-1/w[2], linetype = "dashed") + 
+    geom_abline(slope = slope_1, intercept = intercept_1+1/w[2], linetype = "dashed")
+#display plot
+
+p3
+#training accuracy
+#Obtain class predictions for training (and test) sets
+# Evaluate the training (and test) set accuracy of the model
+svm.pred <-predict(svm_model, iris[1:100,c(4,3)])
+#compare the observed and predicted classes
+mean(svm.pred==iris[1:100,c(5)])
+
+```
+
+
+#### Building a Support Vector Classifier in R: Soft Margin
+
+```{r}
+rm(list = ls())
+library(e1071)
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+
+
+load("linearInsep.RData")
+p2_insep <- ggplot(data=dat, aes(x=X1, y =X2))+ geom_point(aes(color = y), alpha=.9) + scale_color_manual(values=c("red", "blue")) 
+p2_insep
+
+svm_model2_cost1 <- svm(y ~ X1 + X2,
+                 data = dat,
+                 type = 'C-classification',
+                 kernel = "linear",
+                 scale = FALSE,
+                 cost=10) # gamma not applicable in linear
+svm_model2_cost1
+
+# Obtain the index of support vectors in dataset
+svm_model2_cost1$index
+
+#Obtain the intercept of the model
+svm_model2_cost1$rho
+
+
+# Obtain the support vectors
+svm_model2_cost1$SV
+plot(svm_model2_cost1, dat)
+
+#identify support vectors indices
+
+df_sv2 <-dat[svm_model2_cost1$index,]
+
+#mark out support vectors in plot
+p3_insep <- p2_insep + geom_point(data = df_sv2[,c(1,2)], aes(x=X1, y=X2), color = "green", size = 6, alpha = 0.2) 
+p3_insep
+
+
+
+```
+
+- Now we need to add the decision boundary to the plot, we need the slope and intercept of the decision boundary. These are not stored anywhere, so we need to obtain the slope and intercept of the boundary.
+- First step is to build the weight vector, w, from coefs and SV elements of svm_model.
+
+```{r}
+#build weight vector
+
+w2 <- t(svm_model2_cost1$coefs) %*% svm_model2_cost1$SV # this is a matrix multiplication
+#calculate slope and save it to a variable
+slope_2 <- -w2[1]/w2[2]
+
+# And finally we need to get the intercept value of the decision boundary, calculate intercept and save it to a variable
+intercept_2 <- svm_model2_cost1$rho/w2[2] 
+
+# Add decision boundary with geom_abline() to the plot, using the slope and intercept calculated.
+p3_insep <- p3_insep + geom_abline(slope = slope_2, intercept = intercept_2)
+p3_insep
+
+#Margins parallel to decision boundary, offset by 1/w[2] on either side of it. So we can add them as well:
+#add margins to plot
+p3_insep <- p3_insep + 
+    geom_abline(slope = slope_2, intercept = intercept_2-1/w2[2], linetype = "dashed") + 
+    geom_abline(slope = slope_2, intercept = intercept_2+1/w2[2], linetype = "dashed")
+#display plot
+p3_insep
+
+#training accuracy
+svm.pred2 <- predict(svm_model2_cost1, dat)
+#compare the observed and predicted classes
+mean(svm.pred2==dat$y)
+
+```
+
+We now investigate different cost values and see what happens
+
+- The cost parameter in svm() R function is the constant in the regularization term in the Lagrange multiplier.
+- If you know that the decision boundary is linear, a narrow margin can be more useful.
+
+**Tune you model**
+
+- The authors of libsvm suggest to try small and large values for C—like 1 to 1000—first, then to decide which are better for the data by cross validation, and finally to try several γ’s (0.1, 0.01, 0.001, 0.0001, 0.00001) for the better C’s.
+- However, better results are obtained by using a grid search over all parameters. For this, we recommend to use the tune.svm() function in e1071.
+
+```{r}
+# set a cost range, 10-fold cross validation
+set.seed(1) # set a seed to get the same results with the slides
+obj = tune.svm(as.factor(y) ~ X1 + X2, data = dat, type = "C-classification", cost=seq(from=0.005, to=10,by=0.005), gamma = 1) # gamma is the radial kernel parameter, # not applicable in linear
+print(obj)
+summary(obj)
+### Best model
+bestmod = obj$best.model
+bestmod
+```
+
+# Appendix
+
+## LLM Finetuning
+
+- Hyperparameter tuning of cost function
+  
