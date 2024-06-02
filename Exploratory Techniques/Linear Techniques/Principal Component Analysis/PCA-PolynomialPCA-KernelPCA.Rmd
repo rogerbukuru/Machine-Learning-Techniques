@@ -1,5 +1,5 @@
 ---
-title: "Linear and Non-Linear Principal Component Analysis Techniques"
+title: "PCA, Polynomial PCA and Kernel PCA"
 author: "Roger Bukuru"
 date: "`r Sys.Date()`"
 output: html_document
@@ -271,7 +271,66 @@ What are some challenges with polynomial PCA ?
     
 ## Kernel PCA
 
+- An approach that also generalizes polynomial PCA is given by Kernal PCA
+- This is an application of so called kernel methods, which are seen in SVMs.
+- Via kernel PCA we perform nonlinear mapping that transforms the data onto a higher-dimensional space and use standard PCA in this higher-dimensional space to project the data back onto a lower dimensional space.
+- Using the kernel trick, we can compute the similarity between two high-dimension feature vectors in the original space
+- A good tutorial can be found [here](https://atiulpin.wordpress.com/2015/04/02/a-tutorial-on-kernel-principal-component-analysis/)
+- Our aim is to find a nonlinear feature mapping $\varphi: R^D -> F$ where $F$ is an extended feature space
+  - Finding this mapping is not always feasible, because the number of such feature mappings is infinite
+  - Kernel methods allows us to find theses mappings without any search or explicit definition of this linear mapping $\varphi(\cdot)$ , but work in a new feature space $F$ 
+- To extend PCA and enable PCA to classify nonlinear data, we nonlinearly transform our input space $x_i\in R^p$ into a point $\phi(x_i)$ in the M-dimensional feature space $H$ where usually $M >> p$
 
+- We define the kernel as a function of inner products within the transformed space $k(x_i,x_i)=<\phi(x_i), \phi(x_i> = \phi(x_i)^T\phi(x_i)$ 
+  - which computes the inner products in the transformed space that quantifies the similarity of two observations. $k()$ is some        function that we will refer to as Kernel.
+  - Kernel must be equivalent to an inner product in some feature space or specifically a kernel defines similarity of two observations at the transformed space
+  - We need not explicitly construct the new feature space.
+  - However we first need to understand what are inner products
+    - An inner product is a mathematical operation on a vector space that takes two vectors and returns a scalar let $u,v \in V$ $\langle u, v \rangle$. It has the following properties
+      - Symmetric $\langle u, v \rangle = \langle v, u \rangle$
+      - Linear on the first argument. $\langle au + bv, w \rangle = a\langle u, w \rangle + b\langle v, w \rangle$
+      - Positive Definiteness $\langle u, v \rangle \ge 0$ 
+    - Applications of inner product
+      - Angle between vectors
+      - Orthogonality
+      - Projections
+  - So the use of using a Kernel is that it amounts to the fact that using kernels, one need only compute $k(x_i,x_i)$ for all          $C(n,2)$ distinct pairs of $i$ and $i'$.
+    - This can be done without explicitly working in the enlarged feature space/defining the new set of features.
+
+**Steps for kernel PCA**
+- Pick a kernel function
+- Construct the kernel matrix from the training data $x_i$
+- Compute the Gram matrix $\tilde{K} = HKH$ where $H= \mathbf{1}_n-\frac{1}{n}\mathbf{J}_n$ with $\mathbf{J}_n=\mathbf{1}_n\mathbf{1}_n^T$ (done when the projected matrix does not have a mean of zero), this is known as centering
+- Use $K\alpha = n\lambda\alpha$ to solve for the $\alpha$ using SVD
+- Compute the kernel principal components $y(\mathbf{x}) = \Phi(\mathbf{x})^T \mathbf{v} = \sum_{i=1}^{n} \alpha_i \kappa(\mathbf{x}, \mathbf{x}_i)$
+  - This involves solving the eigen problem and then projecting onto the eigenvectors.
+
+**Challenges with kernel PCA**
+- Searching for the proper kernel is a difficult task, and therefore use of KPCA is limited. However, in some practical applications, good candidates for kernel can be found from the nature of the problem.
+- The dimension of the feature space, depending on the kernel, can be very high and it may be computationally prohibitive to compute the principal components in the feature space. (Computationally intractable)
+- PCA's covariance matrix scales with the number of input dimension n.
+- KPCA kernel matrix scales with the number of datapoints d.
+
+**Example**
+
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(dplyr)
+library(rrr)
+library(ggplot2)
+library(scatterplot3d)
+library(plotly)
+library(kernlab)
+
+data("iris")
+
+test = sample(1:150, 20)
+kpca = kpca(., data=iris[-test, -5], kernel = "rbfdot", kpar=list(sigma=0.2, features = 2))
+pcv(kpca)
+plot(rotated(kpc))
+
+```
 
 # Appendix
 
@@ -280,3 +339,6 @@ What are some challenges with polynomial PCA ?
 - Check if inputs are correlated before performing PCA
 - Check if PCA is appropriate for the data, by analysis the first few principal components  in terms of linearity
 - Standardize data by centering and scaling (unit variance)
+- If the data seems non-linear, we can transform it by extending the feature space and then performing linear PCA. We don't know from off the bat if the data is non-linear, so we have to perform various dimension reduction techniques and assess performance of each method. 
+  - So start with linear if not sure or don't have knowledge that data is not inherently linear, then benchmark this with other         non-linear techniques and assess performance. 
+  - For polynomial PCA look at the results of the smallest eigenvalues, we want to observe that the values tappers to zero, in order to determine if an underlying non-linear pattern is being detected. However becareful when performing polynomail PCA as it can be     computationally heavy if we have a large input space!!
