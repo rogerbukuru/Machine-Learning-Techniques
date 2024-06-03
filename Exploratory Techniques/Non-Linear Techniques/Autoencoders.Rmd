@@ -1,0 +1,117 @@
+---
+title: "Autoencoders"
+author: "Roger Bukuru"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introudction
+
+- In supervised learning, we used $NN$s to preduct a $y$ variabel using some $X$ input variable
+- NNs have also been applied to unsupervised learning where they have been used for linear and nonlinear dimensionality reduction.
+- One way to achieve this is to have the same number of output and variables as the input variables, in other words the number of neurons in the input layer is equal to the numer of neurons in the output layer $(p^{(L)}=p^{(1)}$
+- The number of neurons in the hidden layer is less than the number of neurons in the input layer $(M^{(k)}<p^{(1)} \text{for k=2,...L-1} )$
+- The weights of the NN are optimized by minimising the reconstruction error we have seen previously
+
+Autoencoders are data specific, meaning if autoencoders are trained on faces, then they will do a good job on face-specific tasks, but that same model would no be so good on images of cars, trucks or bicycles. Ultimately this means you can only use them on data that is similar to what they were trained on.
+
+## Use of Autoencoders
+
+- Denoising and dimensionality reduction for data visualization
+- With appropriate dimensionality and sparsity constraints, autoencoders can learn data projections that are more interesting than PCA or other basic techniques
+
+
+## Autoencoder Architecture
+
+- The autoencoder network has three layers (input, hidden and output layers) which consists of an encoder and a decoder:
+  - **Encoder** takes a p-dimensional input vector and maps it to an M dimensional latent space using an encoding function where $M<p$
+  - **Decoder** takes the latent space representation and tries to reconstruct the original input with only that information using a decoding function.
+- Going Forward - Backward
+  - See slides
+- Types of Autoencoders
+  - Dimensionality reduction: The primary use of autoencoders is the generation of the latent space (sometimes referred to as the bottleneck), which forms a compressed substitute of the input data. This form of compression in the data can be modeled as a form of dimensionality reduction (linear or nonlinear)
+  - Denoising autoencoder: Using a partially corrupted input to learn how to recover the original undistorted input.
+  - Sparse autoencoder: These use more hidden encoding layers than inputs, and some use the outputs of the last autoencoder as theirn input
+  - Variational autoencoder: In latent representation learning, an additional loss component is used to approximate the posterior
+distribution
+  - Contractive autoencoder: This uses an explicit “regularizer” that forces the model to learn a function that is robust against different variations of the input values
+  - Convolutional autoencoder
+  - A sequence-to-sequence autoencoder
+  
+**How to Train Autoencoder**
+
+- Code size is the most important user input parameter of an Autoencoder structure. How much do you want to compress your data entirely depends on this parameter
+- Number of layers is the depth of an autoencoder. A simple autoencoder has a single hidden layer (L = 3) whereas a deep
+autoencoder has multiple hidden layers (L > 3).
+- Number of nodes per layer usually descreases with each subsequent layer in the encoder, and increases with each subsequent layer in the decoder.
+- Reconstruction loss is the function used to optimize the weights of the neural network. The most popular ones are MSE Loss, L1 Loss, Binary Cross Entropy
+  
+- Code Example
+
+```{r}
+rm(list = ls())
+library(keras)
+
+train_autoencoder = function(epochs = 100, code_size = 1, x_train) {
+  
+total_features = ncol(x_train)
+input_layer = layer_input(shape = c(total_features))
+
+encoder = 
+  input_layer %>%
+  layer_dense(units = total_features/2, activation = "tanh") %>%# encoder layer 1
+  #layer_batch_normalization() %>%  # Batch normalization layer to normalize the activations of the input layer
+  #layer_dropout(rate = 0.1) %>%  #Dropout layer to prevent overfitting by randomly dropping 10% of the input units.
+  #layer_dense(units = total_features/2, activation = "relu") %>%#Hidden layer 2
+  layer_dense(units = code_size) # Botteneck layer/ Laten Layer
+  
+decoder = 
+  encoder %>%
+  layer_dense(units = total_features/2 , activation = "tanh") %>% # Decoder Layer 1
+  #layer_dropout(rate = 0.1) %>%  #Dropout layer to prevent overfitting by randomly dropping 10% of the input units.
+  #layer_dense(units = 15, activation = "relu") %>%#Hidden layer 2
+  layer_dense(units = total_features) # Reconstructed/Output layer
+
+  
+autoencoder_model = keras_model(inputs = input_layer, outputs = decoder)  
+autoencoder_model %>% compile(
+  loss = "mean_squared_error",
+  optimizer = "adam",
+  metrics = c("accuracy")
+)
+
+summary(autoencoder_model)
+
+  auto_associative =
+  autoencoder_model %>%
+  fit(as.matrix(x_train), 
+             as.matrix(x_train),
+             epochs = epochs,
+             batch_size = 256,
+             shuffle = TRUE,
+             validation_split = 0.2
+             #validation_data = list(as.matrix(validation_X_continous_std), as.matrix(validation_X_continous_std))
+             )
+  plot(auto_associative)
+  return(list(autoencoder_model = autoencoder_model, input_layer = input_layer, encoder = encoder))
+}
+
+#autoencoder_mse = rep(NA, 5)
+
+#autoencoder_result <- lapply(1:12, function(x) list(autoencoder_model = NA, input_layer = NA, encoder = NA))
+#for(k in 1:1){
+#  train_aem = train_autoencoder(epochs = 100, code_size = 12, training_data_x_std_smote)
+#  autoencoder_stats = evaluate(train_aem$autoencoder_model,
+#                               as.matrix(training_data_x_std_smote),
+#                               as.matrix(training_data_x_std_smote))
+#  autoencoder_mse[12] = autoencoder_stats["loss"]
+#  autoencoder_result[[12]]$autoencoder_model = train_aem$autoencoder_model
+#  autoencoder_result[[12]]$input_layer = train_aem$input_layer
+#  autoencoder_result[[12]]$encoder = train_aem$encoder
+#}
+#autoencoder_mse
+```

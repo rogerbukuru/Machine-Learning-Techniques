@@ -1,0 +1,247 @@
+---
+title: "Cluster Analysis"
+author: "Roger Bukuru"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Introduction
+
+- Purpose: allocate item to groups
+
+- Key characteristic: unsupervised
+  - "Unsupervised" in the sense that we do not know which observations belong to groups
+  - Can be used for feature extraction
+    - This does not allocate observations to groups, but rather creates new varianles from the original x
+
+What is a cluster ?
+
+- A cluster is a set of items that are grouped together according to some criterion such as:
+  - Proximity e.g k-means clustering, MDS
+  - points with a lower dissimilarity are grouped together.A point (1, 0) has a lower Euclidean distance to a point (0, 1) than a        point (5, 5), and so would be clustered with the (0, 1) point.
+  - Probability
+    - points allocated to probability distribution most likely to have generated them.
+    Suppose point arose from either a N(0, 1) distribution or an N(5, 1) distribution. A point –1 would be allocated to cluster whose     distribution matches the first.
+  - Modality
+    - Imagine 100 observations of one variable. If we plot the density of that variable and it has two peaks, then we could divide         the data into two clusters.
+  - Density
+    - In a given dataset, 70% of observations lie between 0 and 1 and the remaining 30% lie between 5 and 6. The regions [0, 1] and        [5, 6] are high-density regions, and points lying within those regions are clustered together.
+
+- A cluster is generally thought of as a group of items (object, points) in which each item is "close" (in some appropriate sense) to a central item of a cluster and that members of different clusters are "far away" from each other.
+
+There are numerous ways of clustering a data set of n independent measurements on each of r correlated variables 
+- Clustering Observations: Mapping individual samples to a groups. The K groups is unknown and has to be determined from data
+- Clustering variables: Partition the $p$ variables into $K$ distinct groups, where the number K is unknown and has to be determied from the data.
+- Two-way clustering: Simultaneosuly cluster by observations and variables. Other names "block clustering", "direct-clustering", "biclustering", or "co-clustering".
+
+## A few Clustering approaches
+
+- Hierarchical
+  - Agglomerative
+    - Begin with each observation its own cluster, and merge clusters until one cluster
+  - Divisive
+    - Begin with one cluster, split until each observation is its own cluster.
+- Partitioning
+  - Distance-based: k-means, PAM, FANNY
+  - Probability-based: clustering using Gaussian mixtures
+  
+### Hierarchical Clustering
+
+- We tend to use a dendogram to determine the number of clusters
+- Idea of Single Linkage, Complete Linkage and Average Linkage (influence how clusters are merged)
+  - Cutting dendogram at a particular height leads to partitioning into a specified number of groups
+  - Height of linkage refers to similarity of objects, the lower the height of merge, the more similar the objects
+  - Mathematical algorithm described in notes.
+- Linkages
+  - Single Linkage: Minimum linage
+    - The distance between two clusters is defined as the minimum distance between any single pair of points, one from each cluster
+    - Can handle elongated or irregulary shaped clusters
+    - Can lead to elongated clusters
+  - Complete Linkage
+    - The distance between two clusters is defined as the maximum distance between any single pair of points, one from each cluster.
+    - Tendes to produce more compact clusters
+    - Senstive to outliers, as the maximum distance can be heavily influenced by outlying points
+  - Average Linkage
+    - The distance between two clusters is defined as the average distance between all pairs of points, one from each other.
+    - Provides a balance between single and complete linage
+     - Less sensitive to outliers compared to complete linkage.
+  
+#### Example 1
+
+```{r}
+
+rm(list = ls())
+
+library(cluster)
+data = read.csv2("Ex12.3.4.csv", sep=",")
+agglom_single = agnes(data, metric="euclidean", stand=FALSE, method="single", trace.lev = 5)
+plot(agglom_single)
+
+agglom_complete = agnes(data, metric="euclidean", stand=FALSE, method="complete", trace.lev = 5)
+plot(agglom_complete)
+
+agglom_average = agnes(data, metric="euclidean", stand=FALSE, method="average", trace.lev = 5)
+plot(agglom_average)
+
+divisive_average = diana(data, metric="euclidean", stand=FALSE, trace.lev = 5)
+plot(divisive_average)
+```
+- Agglomerative coefficient measures strength of clustering, through average of normalized lengths of dendrogram 
+- Dimensionless between 0 and 1
+- The nearer to one the better
+
+**Analysis of clusters**
+
+- Single linkage can start to show long stringy clusters as the inputs grow
+
+The GAP statistic
+
+- To decide on value of k(cluster size)
+- We wish to choose the value of k that maximizes the gap statistic
+
+# Nonhierarchical or Partitioning Methods
+
+- Seek to split data into a predetermined number K groups such that the items within each cluster are similar to each other, whereas items from different clusters are dissimilar.
+- Partitioning Methods
+  - K-means (kmeans)
+  - Partitioning around mediods (pam)
+- Mode-searching (bump-hunting) methods
+  - using parametric mixtures or nonparametric density estimates (Mclust)
+  
+## Combinatorial Algorithms
+
+- Characterized by a many-to-one mapping or encoder $k=c(i)$ that assigns the ith observation to the k-th cluster 
+- $c(i)$ is determined by finding the one that will minimize a "loss" function 
+- A natural loss functions is what we refer to as the "within-cluster" distance $W(c)= T-B(c)$
+
+    
+
+```{r}
+rm(list = ls())
+primate = read.csv2("primate.scapulae.csv", sep=",")
+#clusGap(primate, FUN = kmeans, K.max = 5)
+```
+
+
+## K-means clustering
+
+1. Input items: data matrix
+2. Do one of the following
+  - Form an initial random assignment of the items into K clusters and for cluster k, compute its current centroid $\bar{x}m k=1,2,...K$
+  - Pre-specify K cluster centroids $\bar{x}m k=1,2,...K$
+3. Compute the squared euclidean distance of each item to its current cluster centroid
+4. Reassign each item to its nearest cluster centroid so that ESS is reduced in magnitude. Update the cluster centroids after each assignment
+5. Repeat steps 3 and 4 until no further reassignment of items takes place.
+
+```{r}
+rm(list = ls())
+
+library(cluster)
+data = read.csv2("Ex12.3.4.csv", sep = ",")
+kmeans1 = kmeans(data, 4)
+kmeans1
+
+fitted(kmeans1)
+plot(data, col=kmeans1$cluster)
+points(kmeans1$centers, col=1:4, pch=8)
+```
+
+## K-mediod and partitioning-around medoids clustering
+
+1. Input: proximity matrix $\mathbf{D}=(d_{ij})$ $K=$ number of clusters
+2. Form an initial assignment of items into K clusters
+3. Locate the medoid for each cluster. The medoid of the $kth$ cluster is defined as that item in the $kth$ cluster that minimizes the total dissimularity to all other items within that cluster, $k=1,2,...,K$
+4a. For K-medoids clustering:
+    - For the $kth$ cluster, reassign the $i_k$th item to its nearest cluster medoid so that the objective function 
+
+```{r}
+rm(list = ls())
+
+library(cluster)
+data = read.csv2("Ex12.3.4.csv", sep = ",")
+pam1 = pam(data, 4, trace.lev = 5)
+
+summary(pam1)
+clusplot(pam1)
+plot(pam1)
+```
+
+- k-means is sensitive to outlier. As means are sensitive to outlier
+- k-medoids: instead of taking the mean value of the object in a cluster as a reference point, medois can be used, which is the most centrally located object in a cluster
+
+From the diagrams
+- The pink lines join medoids
+- Ellipses bound points in a cluster
+  - Note that lines are "collapsed" ellipses when the clusters only have two observations
+- Silhouette Plot
+  - A graphical display of the partitioning
+  - The $ith$ silhouette value is $s_i(C_k)=s_{iK}=\frac{b_i-a_i}{max\{a_i,b_i\}}$
+Where
+  - $a_i=$ average dissimilarity of $i-th$ item from all members of same cluster, $c(i)$
+  - $b_j=$ minimum average dissimilarity of $i-th$ item to all members of clusters other than $c(i)$ 
+  - See slides for the rest of the details.
+
+## Fuzzy Analysis (FANNY)
+
+- Allows for ambiguity in the data since each object spread over various clusters with degree of belonging to a cluster quantified by a membership coefficient that ranges from 0 to 1
+- Aims to minimize C = $\sum_{v=1}^{k} \frac{\sum_{i,j=1}^{n} u_{iv}^2 u_{jv}^2 d(i,j)}{2 \sum_{l=1}^{n} u_{lk}^2}$
+  - Where $d(i,j) = \text{distance between objects } i \text{ and } j$
+  - $u_{iv} = \text{unknown membership of object } i \text{ to cluster } v, \text{ subject to } u_{iv} \geq 0 \text{ and } \sum_{v} u_{iv} = 1$
+  
+```{r}
+rm(list = ls())
+
+library(cluster)
+data = read.csv2("Ex12.3.4.csv", sep = ",")
+fanny1 = fanny(data, 3)
+summary(fanny1)
+clusplot(fanny1)
+plot(fanny1)
+```
+
+## Clustering Large Applications (CLARA)
+
+- Based in k-medoid approach
+  Carried out in 2 steps:
+    1. a sample is drawn from the set of objects and clustered into k subsets using the k-medoid method, which also gives k                 representative objects
+    2. each object not belonging to the sample is assigned to the nearest of the k representative objects.
+      - A measure of the quality of this clustering is obtained by computing the average distance between each object of the data           set and its representative object.
+      - After 5 samples have been drawn and clustered, the one is selected for which the lowest average distance was obtained.
+
+
+```{r}
+
+rm(list = ls())
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+
+satimage = read_table("satimage.txt", col_names = TRUE)
+colnames(satimage) <- gsub('"', '', colnames(satimage))
+satimage$class <- gsub('"', '', satimage$class)
+
+satimage = satimage %>%
+  mutate(class = as.factor(class))
+
+clara1 = clara(satimage, 6, trace = 2)
+#clusplot(clara1)
+plot(clara1)
+```
+
+
+## Model-Based Clustering
+
+- Assumes that the sample observations were generated by a mixture of distributions
+- Often a mixture of mutlivariate normal distributions
+- And each component of the mixture identifies/depicts a cluster
+
+# Appendix
+
+## LLM Finetuning
+- PAM is computationally expensive
+- K-means is sensitive to outliers
+
