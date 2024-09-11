@@ -66,12 +66,14 @@ p2
 - Which one is the best ?
 
 Maximal Margin Classifier - Which Line ?
+
 - Suppose that is possible to construct a line that separates the training observations perfectly according to their class labels.
 - Then the separating line has the property that
  - $b + w_{1}x_{i1} +. w_{2}x_{i2} > 0 if y_i = +1$
  - $b + w_{1}x_{i1} +. w_{2}x_{i2} < 0 if y_i = -1$
 
 Equivalently, $y_i(b+w_1x_{i1} + w_2x_{i2})$
+
 - NB: Line is defined with the folowing:
   - $b+w_1x_{i1} + w_2x_{i2} = 0$
   - $w^Tx+b=0$ (here $w$ is always normal to the hyperplane)
@@ -341,4 +343,220 @@ bestmod
 ## LLM Finetuning
 
 - Hyperparameter tuning of cost function
+- For nonlinear cases, SVMs are popular
   
+## Weight matrix
+
+The weight vector (\(w\)) in the context of a Support Vector Machine (SVM) classifier, specifically for the maximal margin classifier (linear SVM), is a critical component that defines the orientation of the hyperplane separating the classes. Let's break down its definition and the related code in your example:
+
+### Definition of the Weight Vector
+
+In a linear SVM, the goal is to find the hyperplane that best separates the classes by maximizing the margin between the closest points of each class (support vectors) and the hyperplane. The equation of the hyperplane in the feature space can be written as:
+
+\[ w^T x + b = 0 \]
+
+where:
+- \(w\) is the weight vector, which is perpendicular to the hyperplane.
+- \(x\) is a feature vector.
+- \(b\) is the intercept (bias term).
+
+### Calculation of the Weight Vector
+
+The weight vector can be computed from the support vectors and their corresponding coefficients (Lagrange multipliers) obtained from solving the SVM optimization problem. The SVM model provides these coefficients as `svm_model$coefs` and the support vectors as `svm_model$SV`.
+
+The weight vector \(w\) is calculated as:
+
+\[ w = \sum_{i=1}^n \alpha_i y_i x_i \]
+
+where:
+- \(\alpha_i\) are the Lagrange multipliers (support vector coefficients).
+- \(y_i\) are the class labels of the support vectors.
+- \(x_i\) are the support vectors.
+
+### Your Code for Weight Vector Calculation
+
+In your code, the weight vector is computed as follows:
+
+```r
+# Build weight vector
+w <- t(svm_model$coefs) %*% svm_model$SV
+```
+
+### Explanation of the Code
+
+1. **Support Vectors and Coefficients**:
+   - `svm_model$coefs` provides the coefficients (Lagrange multipliers) for the support vectors.
+   - `svm_model$SV` provides the support vectors.
+
+2. **Matrix Multiplication**:
+   - `t(svm_model$coefs)` transposes the coefficients vector to align it properly for matrix multiplication.
+   - `%*%` performs matrix multiplication between the transposed coefficients and the support vectors.
+
+### Example Calculation
+
+To understand the calculation, let's assume the coefficients and support vectors are as follows (simplified example):
+
+- Coefficients (`svm_model$coefs`): \(\alpha = [0.5, 0.3, 0.2]\)
+- Support Vectors (`svm_model$SV`): \[
+\begin{bmatrix}
+1 & 2 \\
+2 & 3 \\
+3 & 4 \\
+\end{bmatrix}
+\]
+
+Then, the weight vector \(w\) is calculated as:
+
+```r
+w <- t(c(0.5, 0.3, 0.2)) %*% matrix(c(1, 2, 2, 3, 3, 4), nrow=3, byrow=TRUE)
+```
+
+This results in:
+
+\[ w = \begin{bmatrix} 0.5 & 0.3 & 0.2 \end{bmatrix} \begin{bmatrix} 1 & 2 \\ 2 & 3 \\ 3 & 4 \end{bmatrix} = \begin{bmatrix} 1.6 & 2.6 \end{bmatrix} \]
+
+### Intercept Calculation
+
+The intercept (\(b\)) is calculated as:
+
+```r
+intercept_1 <- svm_model$rho / w[2]
+```
+
+### Visualization with `geom_abline`
+
+To visualize the decision boundary and the margins, you add lines to the plot using `geom_abline()`:
+
+- **Decision Boundary**:
+  ```r
+  p3 <- p3 + geom_abline(slope = slope_1, intercept = intercept_1)
+  ```
+
+- **Margins**:
+  ```r
+  p3 <- p3 + 
+      geom_abline(slope = slope_1, intercept = intercept_1 - 1 / w[2], linetype = "dashed") + 
+      geom_abline(slope = slope_1, intercept = intercept_1 + 1 / w[2], linetype = "dashed")
+  ```
+
+### Complete Process
+
+1. **Load and Prepare Data**:
+   - Load the `iris` dataset and preprocess it.
+   - Visualize the initial data with `ggplot2`.
+
+2. **Train the SVM Model**:
+   - Train a linear SVM model on the `iris` dataset.
+
+3. **Identify Support Vectors**:
+   - Extract the support vectors and add them to the plot.
+
+4. **Compute Weight Vector and Intercept**:
+   - Calculate the weight vector and intercept to define the decision boundary.
+
+5. **Plot Decision Boundary and Margins**:
+   - Add the decision boundary and margins to the plot for visualization.
+
+6. **Evaluate Model**:
+   - Obtain class predictions and evaluate the model's accuracy.
+
+By following these steps, you can build and visualize an SVM maximal margin classifier in R.
+
+
+
+Certainly! Let's delve into the details regarding the calculation of the slope of the decision boundary.
+
+### Calculation of the Slope
+
+In a linear SVM, the decision boundary is defined by the equation:
+
+\[ w^T x + b = 0 \]
+
+where:
+- \( w \) is the weight vector.
+- \( x \) is a feature vector.
+- \( b \) is the intercept (bias term).
+
+For a 2D feature space (e.g., Petal.Width and Petal.Length in the iris dataset), the decision boundary can be expressed as a line. The slope (\(m\)) and intercept (\(c\)) of this line can be derived from the weight vector and the intercept of the hyperplane.
+
+### Slope and Intercept
+
+The slope \(m\) of the decision boundary is given by:
+
+\[ m = -\frac{w_1}{w_2} \]
+
+where:
+- \( w_1 \) is the weight associated with the first feature (Petal.Width).
+- \( w_2 \) is the weight associated with the second feature (Petal.Length).
+
+The intercept \(c\) of the decision boundary is given by:
+
+\[ c = -\frac{b}{w_2} \]
+
+In your code, the intercept is computed using the SVM model's rho parameter divided by \( w_2 \):
+
+\[ c = \frac{\rho}{w_2} \]
+
+### R Code for Slope and Intercept Calculation
+
+Here is the section of your code where the slope and intercept are calculated:
+
+```r
+# Build weight vector
+w <- t(svm_model$coefs) %*% svm_model$SV
+
+# Calculate slope
+slope_1 <- -w[1] / w[2]
+
+# Calculate intercept
+intercept_1 <- svm_model$rho / w[2]
+```
+
+### Visualization of Decision Boundary and Margins
+
+Once you have the slope and intercept, you can visualize the decision boundary and margins using `geom_abline()` in `ggplot2`. Here is the complete part of your code for plotting:
+
+```r
+# Original plot with data points
+p2 <- ggplot(data=iris[1:100,], aes(x=Petal.Width, y=Petal.Length)) +
+  geom_point(aes(color = Species))
+
+# Identify support vectors
+df_sv <- iris[svm_model$index,]
+
+# Add support vectors to the plot
+p3 <- p2 + geom_point(data = df_sv, aes(x=Petal.Width, y=Petal.Length), color = "purple", size = 4, alpha = 0.5)
+
+# Calculate weight vector, slope, and intercept
+w <- t(svm_model$coefs) %*% svm_model$SV
+slope_1 <- -w[1] / w[2]
+intercept_1 <- svm_model$rho / w[2]
+
+# Add decision boundary
+p3 <- p3 + geom_abline(slope = slope_1, intercept = intercept_1)
+
+# Add margins to plot
+p3 <- p3 + 
+  geom_abline(slope = slope_1, intercept = intercept_1 - 1 / w[2], linetype = "dashed") + 
+  geom_abline(slope = slope_1, intercept = intercept_1 + 1 / w[2], linetype = "dashed")
+
+# Display plot
+p3
+```
+
+### Summary
+
+1. **Weight Vector Calculation**:
+   - `w <- t(svm_model$coefs) %*% svm_model$SV` computes the weight vector using the support vectors and their coefficients.
+
+2. **Slope Calculation**:
+   - `slope_1 <- -w[1] / w[2]` calculates the slope of the decision boundary.
+
+3. **Intercept Calculation**:
+   - `intercept_1 <- svm_model$rho / w[2]` calculates the intercept of the decision boundary.
+
+4. **Plot Decision Boundary and Margins**:
+   - `geom_abline(slope = slope_1, intercept = intercept_1)` adds the decision boundary to the plot.
+   - `geom_abline(slope = slope_1, intercept = intercept_1 - 1 / w[2], linetype = "dashed")` and `geom_abline(slope = slope_1, intercept = intercept_1 + 1 / w[2], linetype = "dashed")` add the margins to the plot.
+
+By following these steps, you can visualize the decision boundary and margins of the SVM maximal margin classifier on the scatter plot of the iris dataset.

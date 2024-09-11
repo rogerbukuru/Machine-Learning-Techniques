@@ -11,7 +11,7 @@
 
 <meta name="author" content="Roger Bukuru" />
 
-<meta name="date" content="2024-06-02" />
+<meta name="date" content="2024-06-05" />
 
 <title>Support Vector Machines</title>
 
@@ -352,7 +352,7 @@ display: none;
 
 <h1 class="title toc-ignore">Support Vector Machines</h1>
 <h4 class="author">Roger Bukuru</h4>
-<h4 class="date">2024-06-02</h4>
+<h4 class="date">2024-06-05</h4>
 
 </div>
 
@@ -434,16 +434,30 @@ p2                </code></pre>
 <span class="math inline">\(x_i\)</span> for which <span class="math inline">\(y_i = -1\)</span> from the points for which <span class="math inline">\(y_i = +1\)</span></li>
 <li>Which one is the best ?</li>
 </ul>
-<p>Maximal Margin Classifier - Which Line ? - Suppose that is possible
-to construct a line that separates the training observations perfectly
-according to their class labels. - Then the separating line has the
-property that - <span class="math inline">\(b + w_{1}x_{i1} +.
-w_{2}x_{i2} &gt; 0 if y_i = +1\)</span> - <span class="math inline">\(b
-+ w_{1}x_{i1} +. w_{2}x_{i2} &lt; 0 if y_i = -1\)</span></p>
+<p>Maximal Margin Classifier - Which Line ?</p>
+<ul>
+<li>Suppose that is possible to construct a line that separates the
+training observations perfectly according to their class labels.</li>
+<li>Then the separating line has the property that</li>
+<li><span class="math inline">\(b + w_{1}x_{i1} +. w_{2}x_{i2} &gt; 0 if
+y_i = +1\)</span></li>
+<li><span class="math inline">\(b + w_{1}x_{i1} +. w_{2}x_{i2} &lt; 0 if
+y_i = -1\)</span></li>
+</ul>
 <p>Equivalently, <span class="math inline">\(y_i(b+w_1x_{i1} +
-w_2x_{i2})\)</span> - NB: Line is defined with the folowing: - <span class="math inline">\(b+w_1x_{i1} + w_2x_{i2} = 0\)</span> - <span class="math inline">\(w^Tx+b=0\)</span> (here <span class="math inline">\(w\)</span> is always normal to the hyperplane) -
-If <span class="math inline">\(b=0\)</span> then the line goes through
-the origin - But how do we find the values of <span class="math inline">\(b,w_1,w_2\)</span></p>
+w_2x_{i2})\)</span></p>
+<ul>
+<li>NB: Line is defined with the folowing:
+<ul>
+<li><span class="math inline">\(b+w_1x_{i1} + w_2x_{i2} =
+0\)</span></li>
+<li><span class="math inline">\(w^Tx+b=0\)</span> (here <span class="math inline">\(w\)</span> is always normal to the
+hyperplane)</li>
+<li>If <span class="math inline">\(b=0\)</span> then the line goes
+through the origin</li>
+<li>But how do we find the values of <span class="math inline">\(b,w_1,w_2\)</span></li>
+</ul></li>
+</ul>
 </div>
 <div id="construction-of-the-maximal-margin" class="section level2">
 <h2>Construction of the maximal margin</h2>
@@ -2831,6 +2845,140 @@ bestmod</code></pre>
 <ul>
 <li>Hyperparameter tuning of cost function</li>
 </ul>
+</div>
+<div id="weight-matrix" class="section level2">
+<h2>Weight matrix</h2>
+<p>The weight vector (<span class="math inline">\(w\)</span>) in the
+context of a Support Vector Machine (SVM) classifier, specifically for
+the maximal margin classifier (linear SVM), is a critical component that
+defines the orientation of the hyperplane separating the classes. Let’s
+break down its definition and the related code in your example:</p>
+<div id="definition-of-the-weight-vector" class="section level3">
+<h3>Definition of the Weight Vector</h3>
+<p>In a linear SVM, the goal is to find the hyperplane that best
+separates the classes by maximizing the margin between the closest
+points of each class (support vectors) and the hyperplane. The equation
+of the hyperplane in the feature space can be written as:</p>
+<p><span class="math display">\[ w^T x + b = 0 \]</span></p>
+<p>where: - <span class="math inline">\(w\)</span> is the weight vector,
+which is perpendicular to the hyperplane. - <span class="math inline">\(x\)</span> is a feature vector. - <span class="math inline">\(b\)</span> is the intercept (bias term).</p>
+</div>
+<div id="calculation-of-the-weight-vector" class="section level3">
+<h3>Calculation of the Weight Vector</h3>
+<p>The weight vector can be computed from the support vectors and their
+corresponding coefficients (Lagrange multipliers) obtained from solving
+the SVM optimization problem. The SVM model provides these coefficients
+as <code>svm_model$coefs</code> and the support vectors as
+<code>svm_model$SV</code>.</p>
+<p>The weight vector <span class="math inline">\(w\)</span> is
+calculated as:</p>
+<p><span class="math display">\[ w = \sum_{i=1}^n \alpha_i y_i x_i
+\]</span></p>
+<p>where: - <span class="math inline">\(\alpha_i\)</span> are the
+Lagrange multipliers (support vector coefficients). - <span class="math inline">\(y_i\)</span> are the class labels of the support
+vectors. - <span class="math inline">\(x_i\)</span> are the support
+vectors.</p>
+</div>
+<div id="your-code-for-weight-vector-calculation" class="section level3">
+<h3>Your Code for Weight Vector Calculation</h3>
+<p>In your code, the weight vector is computed as follows:</p>
+<pre class="r"><code># Build weight vector
+w &lt;- t(svm_model$coefs) %*% svm_model$SV</code></pre>
+</div>
+<div id="explanation-of-the-code" class="section level3">
+<h3>Explanation of the Code</h3>
+<ol style="list-style-type: decimal">
+<li><strong>Support Vectors and Coefficients</strong>:
+<ul>
+<li><code>svm_model$coefs</code> provides the coefficients (Lagrange
+multipliers) for the support vectors.</li>
+<li><code>svm_model$SV</code> provides the support vectors.</li>
+</ul></li>
+<li><strong>Matrix Multiplication</strong>:
+<ul>
+<li><code>t(svm_model$coefs)</code> transposes the coefficients vector
+to align it properly for matrix multiplication.</li>
+<li><code>%*%</code> performs matrix multiplication between the
+transposed coefficients and the support vectors.</li>
+</ul></li>
+</ol>
+</div>
+<div id="example-calculation" class="section level3">
+<h3>Example Calculation</h3>
+<p>To understand the calculation, let’s assume the coefficients and
+support vectors are as follows (simplified example):</p>
+<ul>
+<li>Coefficients (<code>svm_model$coefs</code>): <span class="math inline">\(\alpha = [0.5, 0.3, 0.2]\)</span></li>
+<li>Support Vectors (<code>svm_model$SV</code>): <span class="math display">\[
+\begin{bmatrix}
+1 &amp; 2 \\
+2 &amp; 3 \\
+3 &amp; 4 \\
+\end{bmatrix}
+\]</span></li>
+</ul>
+<p>Then, the weight vector <span class="math inline">\(w\)</span> is
+calculated as:</p>
+<pre class="r"><code>w &lt;- t(c(0.5, 0.3, 0.2)) %*% matrix(c(1, 2, 2, 3, 3, 4), nrow=3, byrow=TRUE)</code></pre>
+<p>This results in:</p>
+<p><span class="math display">\[ w = \begin{bmatrix} 0.5 &amp; 0.3 &amp;
+0.2 \end{bmatrix} \begin{bmatrix} 1 &amp; 2 \\ 2 &amp; 3 \\ 3 &amp; 4
+\end{bmatrix} = \begin{bmatrix} 1.6 &amp; 2.6 \end{bmatrix}
+\]</span></p>
+</div>
+<div id="intercept-calculation" class="section level3">
+<h3>Intercept Calculation</h3>
+<p>The intercept (<span class="math inline">\(b\)</span>) is calculated
+as:</p>
+<pre class="r"><code>intercept_1 &lt;- svm_model$rho / w[2]</code></pre>
+</div>
+<div id="visualization-with-geom_abline" class="section level3">
+<h3>Visualization with <code>geom_abline</code></h3>
+<p>To visualize the decision boundary and the margins, you add lines to
+the plot using <code>geom_abline()</code>:</p>
+<ul>
+<li><p><strong>Decision Boundary</strong>:</p>
+<pre class="r"><code>p3 &lt;- p3 + geom_abline(slope = slope_1, intercept = intercept_1)</code></pre></li>
+<li><p><strong>Margins</strong>:</p>
+<pre class="r"><code>p3 &lt;- p3 + 
+    geom_abline(slope = slope_1, intercept = intercept_1 - 1 / w[2], linetype = &quot;dashed&quot;) + 
+    geom_abline(slope = slope_1, intercept = intercept_1 + 1 / w[2], linetype = &quot;dashed&quot;)</code></pre></li>
+</ul>
+</div>
+<div id="complete-process" class="section level3">
+<h3>Complete Process</h3>
+<ol style="list-style-type: decimal">
+<li><strong>Load and Prepare Data</strong>:
+<ul>
+<li>Load the <code>iris</code> dataset and preprocess it.</li>
+<li>Visualize the initial data with <code>ggplot2</code>.</li>
+</ul></li>
+<li><strong>Train the SVM Model</strong>:
+<ul>
+<li>Train a linear SVM model on the <code>iris</code> dataset.</li>
+</ul></li>
+<li><strong>Identify Support Vectors</strong>:
+<ul>
+<li>Extract the support vectors and add them to the plot.</li>
+</ul></li>
+<li><strong>Compute Weight Vector and Intercept</strong>:
+<ul>
+<li>Calculate the weight vector and intercept to define the decision
+boundary.</li>
+</ul></li>
+<li><strong>Plot Decision Boundary and Margins</strong>:
+<ul>
+<li>Add the decision boundary and margins to the plot for
+visualization.</li>
+</ul></li>
+<li><strong>Evaluate Model</strong>:
+<ul>
+<li>Obtain class predictions and evaluate the model’s accuracy.</li>
+</ul></li>
+</ol>
+<p>By following these steps, you can build and visualize an SVM maximal
+margin classifier in R.</p>
+</div>
 </div>
 </div>
 

@@ -338,15 +338,285 @@ test = sample(1:150, 20)
 
 ```
 
+# Practice Exercises
+
+## Linear PCA Exercices
+
+```{r}
+rm(list = ls())
+library(ggplot2)
+library(tidyverse)
+data("iris")
+
+
+iris_data = iris
+
+head(iris_data)
+x = as.matrix(iris_data[,-5])
+x_c = scale(x, center=TRUE)
+
+# PCA From First Principles using eigenvalue decomp
+
+cov_x_c = cov(x_c)
+evd = eigen(cov_x_c)
+pca_components = evd$vectors
+pca_scores = x_c%*%pca_components
+colnames(pca_scores) = paste("PC", sep="", 1:ncol(pca_scores))
+var_explained = round(evd$values / sum(evd$values), 4)
+var_explained
+
+
+pca_tbl = pca_scores%>%
+          as_tibble()
+
+ggplot(pca_tbl, aes(x=PC1, y=PC2))+
+        geom_point(size = 3)
+pairs(pca_scores)
+```
+
+- Observing the the set of PC scores in the matrix plot, we note that between the first two principal components, there is a clear clustering seperating the species, it seems as though there are only two clusters, but upon closer observations we note a third cluster, this ties in with the number of distinct species that exists within the data set. Between (PC1,PC3) and (PC1,PC3) we observe similar patterns. However between (PC2, PC3), (PC2, PC4) and (PC3, PC4) there is no clustering and a different behaviour is observed.
+
+- Pairs with normal `prcomp`
+
+```{r}
+pca_analysis = prcomp(x_c, center=FALSE)
+pca_scores = pca_analysis$x
+summary(pca_analysis)
+pairs(pca_scores)
+```
+
+- PCA under RRR approach from first principals
+
+```{r}
+# We define the matrix C = AB where A = V, B = t(V)
+
+mux = apply(x, 2, mean)
+V = evd$vectors
+A = V
+B = t(V)
+n = nrow(V)
+
+# Rank 1
+A1 = matrix(A[, 1], ncol = 1, byrow = TRUE)
+B1 = matrix(B[1,], ncol = n, byrow = TRUE)
+C1 = A1%*%B1
+x1 = C1%*%t(x_c) # => tcrossprod(x_c,C1)
+mse_1 = sum((x_c-t(x1))^2)
+
+# Rank 2
+A2 = matrix(A[, 1:2], ncol = 2, byrow = TRUE)
+B2 = matrix(B[1:2,], ncol = n, byrow = TRUE)
+C2 = A2%*%B2
+x2 = C2%*%t(x_c) # => tcrossprod(x_c,C2)
+mse_2 = sum((x_c-t(x2))^2)
+
+# Rank 3
+A3 = matrix(A[, 1:3], ncol = 3, byrow = TRUE)
+B3 = matrix(B[1:3,], ncol = n, byrow = TRUE)
+C3 = A3%*%B3
+x3 = C3%*%t(x_c) # => tcrossprod(x_c,C3)
+mse_3 = sum((x_c-t(x3))^2)
+
+# Full Rank
+C = A%*%B
+x_full = C%*%t(x_c) # => tcrossprod(x_c,C)
+mse_full = sum((x_c-t(x_full))^2)
+
+mse_1
+mse_2
+mse_3
+mse_full
+pairs(t(x_full))
+
+
+
+```
+
+- From RRR, we note that we achieve the lowest MSE when using the full rank coefficient matrix in this case. And the PCA scores in the matrix plot are consistent with the previous approaches.
+
+- PCA using RRR package
+
+```{r}
+library(rrr)
+pca_rrr = rrr(x_c, x_c, type = "pca", rank = 4, k=0)
+pca_components_rrr = as.matrix(pca_rrr$PC)
+pca_scores = x_c%*%pca_components_rrr
+summary(pca_rrr)
+pairs(pca_scores)
+
+```
+
+
+## Kernel PCA
+Exercise 16.4: Kernel PCA
+Using the pendigits data (in resources folder as a csv file), which consists of 10 992 handwritten digits, 
+
+- (1) carry out an ordinary linear PCA
+
+```{r}
+
+rm(list=ls())
+library(ggplot2)
+library(tidyverse)
+
+pendigits_data = read_csv("pendigits_csv.csv", col_names = TRUE)
+x = pendigits_data[,-17]
+x_c = scale(x, center = TRUE)
+cov_x_c = cov(x_c)
+
+eigen_decomp = eigen(cov_x_c)
+
+pca_scores = x_c%*%eigen_decomp$vectors
+var_explained = round(eigen_decomp$values/sum(eigen_decomp$values),4)
+
+var_explained_tbl = data.frame(PC=1:ncol(pca_scores), var_explained = var_explained)
+
+#summary(prcomp(x_c, center = FALSE))
+
+ggplot(var_explained_tbl, aes(x=PC, y=var_explained))+
+      geom_point()+
+      geom_line()+
+      labs(
+        x = "Principal Component",
+        y = "Proportion of Variance Explained",
+        title = "Scree Plot") +
+     theme_minimal() # Using a minimal theme for aesthetics
+
+var_first_4_pca = sum(var_explained_tbl$var_explained[1:5])
+#var_first_11_pca = sum(var_explained_tbl$var_explained[1:11])
+
+var_first_4_pca
+#var_first_11_pca
+
+# First 11 PCA can explain 95.8% of the variance 
+
+var_first_4_pca = data.frame(pca_scores[,1:4])
+
+ggplot(var_first_4_pca, aes(x=X1, y=X2))+
+      geom_point()+
+      labs(
+        x = "PC1",
+        y = "PC2",
+        title = "PCA Scores") +
+     theme_minimal() # Using a minimal theme for aesthetics
+
+```
+
+(2) compute the kernel PC scores and plot them for different values of o for the RBF kernel. Use different colors for the 10 digits.
+Comment on your findings and compare the PCA results to the kPCA results.
+
+```{r}
+library(kernlab)
+library(tidyverse)
+
+x_c = x_c%>%
+      as_tibble()
+
+#kpca = kpca(~., data = x_c, kernel= "rbfdot", kpar= list(sigma = 0.1), features #= 4)
+load("kpcaResultsPenDigits.RData")
+
+pca_data = pcv(kpca)%>%
+           as_tibble() %>%
+           mutate(class = as.factor(pendigits_data$class))
+
+ggplot(pca_data, aes(x = V1, y = V2, color = as.factor(class))) +
+  geom_point(size = 3) +
+  labs(title = "Kernel PCA using RBF Kernel", x = "PC1", y = "PC2", color="Numbers") +
+  theme_minimal()
+
+
+ggplot(pca_data, aes(x = V1, y = V2, color = as.factor(class))) +
+  geom_point(size = 3) +
+  labs(title = "Kernel PCA using RBF Kernel", x = "PC1", y = "PC2", color="Numbers") +
+  theme_minimal()
+
+#scatterplot3d::scatterplot3d(pca_data, x = V1, y = V2, z = V3)
+
+```
+
+```{r}
+rm(list=ls())
+
+load(file = "coil20.Rda")
+head(coil20)
+
+x_c = scale(coil20, center= TRUE)
+x_c = x_c%>%
+      as_tibble()
+#cov_x_c = cov(x_c)
+#evd = eigen(cov_x_c)
+#var_explained = evd$values
+#pca_scores = x_c%*%evd$vectors
+
+kpca(~., data = x_c, kernel = "rbfdot", )
+
+```
+
 # Appendix
 
 ## LLM Finetuning
 
 - Check if inputs are correlated before performing PCA
-- Check if PCA is appropriate for the data, by analysis the first few principal components  in terms of linearity
+- Check if PCA is appropriate for the data, by ana twolysis the first few principal components  in terms of linearity
 - Standardize data by centering and scaling (unit variance)
 - If the data seems non-linear, we can transform it by extending the feature space and then performing linear PCA. We don't know from off the bat if the data is non-linear, so we have to perform various dimension reduction techniques and assess performance of each method. 
   - So start with linear if not sure or don't have knowledge that data is not inherently linear, then benchmark this with other         non-linear techniques and assess performance. 
   - For polynomial PCA look at the results of the smallest eigenvalues, we want to observe that the values tappers to zero, in order to determine if an underlying non-linear pattern is being detected. However becareful when performing polynomail PCA as it can be     computationally heavy if we have a large input space!!
 - Kernel PCA to be explored if we can determine a kernel function to work with, but can be good to represent non-linear data. Depending on kernel the high-dimensional space can be computationally expensive.
 - Hyperparamter tuning of kernel parameters
+
+## Kernel PCA from First Principals
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(tidyverse)
+
+# Load or create the pendigits data
+data(pendigits)  # Ensure pendigits data is available in your environment
+pendigits_data <- pendigits[, -ncol(pendigits)]  # Exclude the label column for kernel calculation
+labels <- pendigits[, ncol(pendigits)]  # Extract the label column
+
+# Step 1: Standardize the data
+x_c <- scale(pendigits_data, center = TRUE)
+
+# Step 2: Construct the Kernel Matrix using RBF kernel
+sigma <- 0.1
+rbf_kernel <- function(x, y, sigma) {
+  exp(-sum((x - y)^2) / (2 * sigma^2))
+}
+
+n <- nrow(x_c)
+K <- matrix(0, n, n)
+for (i in 1:n) {
+  for (j in 1:n) {
+    K[i, j] <- rbf_kernel(x_c[i, ], x_c[j, ], sigma)
+  }
+}
+
+# Step 3: Center the Kernel Matrix
+one_n <- matrix(1 / n, n, n)
+H <- diag(n) - one_n
+K_centered <- H %*% K %*% H
+
+# Step 4: Solve for alpha using eigen decomposition
+eig <- eigen(K_centered)
+values <- eig$values
+vectors <- eig$vectors
+
+# Step 5: Compute the Kernel Principal Components
+# Select the top k components (e.g., k = 2)
+k <- 2
+alphas <- vectors[, 1:k]
+principal_components <- K_centered %*% alphas
+
+# Create a data frame for plotting
+pc_df <- data.frame(PC1 = principal_components[, 1], PC2 = principal_components[, 2], Label = labels)
+
+# Plot the first two principal components
+ggplot(pc_df, aes(x = PC1, y = PC2, color = as.factor(Label))) +
+  geom_point(size = 3) +
+  labs(title = "Kernel PCA using RBF Kernel", x = "PC1", y = "PC2") +
+  theme_minimal()
+
+```

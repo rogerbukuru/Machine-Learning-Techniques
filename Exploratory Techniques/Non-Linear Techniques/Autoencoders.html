@@ -11,7 +11,7 @@
 
 <meta name="author" content="Roger Bukuru" />
 
-<meta name="date" content="2024-06-03" />
+<meta name="date" content="2024-06-06" />
 
 <title>Autoencoders</title>
 
@@ -352,7 +352,7 @@ display: none;
 
 <h1 class="title toc-ignore">Autoencoders</h1>
 <h4 class="author">Roger Bukuru</h4>
-<h4 class="date">2024-06-03</h4>
+<h4 class="date">2024-06-06</h4>
 
 </div>
 
@@ -428,19 +428,81 @@ variations of the input values</li>
 </ul>
 <p><strong>How to Train Autoencoder</strong></p>
 <ul>
-<li>Code size is the most important user input parameter of an
+<li><p>Code size is the most important user input parameter of an
 Autoencoder structure. How much do you want to compress your data
-entirely depends on this parameter</li>
-<li>Number of layers is the depth of an autoencoder. A simple
+entirely depends on this parameter</p></li>
+<li><p>Number of layers is the depth of an autoencoder. A simple
 autoencoder has a single hidden layer (L = 3) whereas a deep autoencoder
-has multiple hidden layers (L &gt; 3).</li>
-<li>Number of nodes per layer usually descreases with each subsequent
+has multiple hidden layers (L &gt; 3).</p></li>
+<li><p>Number of nodes per layer usually descreases with each subsequent
 layer in the encoder, and increases with each subsequent layer in the
-decoder.</li>
-<li>Reconstruction loss is the function used to optimize the weights of
-the neural network. The most popular ones are MSE Loss, L1 Loss, Binary
-Cross Entropy</li>
+decoder.</p></li>
+<li><p>Reconstruction loss is the function used to optimize the weights
+of the neural network. The most popular ones are MSE Loss, L1 Loss,
+Binary Cross Entropy</p></li>
+<li><p>Code Example</p></li>
 </ul>
+<pre class="r"><code>rm(list = ls())
+library(keras)
+
+train_autoencoder = function(epochs = 100, code_size = 1, x_train) {
+  
+total_features = ncol(x_train)
+input_layer = layer_input(shape = c(total_features))
+
+encoder = 
+  input_layer %&gt;%
+  layer_dense(units = total_features/2, activation = &quot;tanh&quot;) %&gt;%# encoder layer 1
+  #layer_batch_normalization() %&gt;%  # Batch normalization layer to normalize the activations of the input layer
+  #layer_dropout(rate = 0.1) %&gt;%  #Dropout layer to prevent overfitting by randomly dropping 10% of the input units.
+  #layer_dense(units = total_features/2, activation = &quot;relu&quot;) %&gt;%#Hidden layer 2
+  layer_dense(units = code_size) # Botteneck layer/ Laten Layer
+  
+decoder = 
+  encoder %&gt;%
+  layer_dense(units = total_features/2 , activation = &quot;tanh&quot;) %&gt;% # Decoder Layer 1
+  #layer_dropout(rate = 0.1) %&gt;%  #Dropout layer to prevent overfitting by randomly dropping 10% of the input units.
+  #layer_dense(units = 15, activation = &quot;relu&quot;) %&gt;%#Hidden layer 2
+  layer_dense(units = total_features) # Reconstructed/Output layer
+
+  
+autoencoder_model = keras_model(inputs = input_layer, outputs = decoder)  
+autoencoder_model %&gt;% compile(
+  loss = &quot;mean_squared_error&quot;,
+  optimizer = &quot;adam&quot;,
+  metrics = c(&quot;accuracy&quot;)
+)
+
+summary(autoencoder_model)
+
+  auto_associative =
+  autoencoder_model %&gt;%
+  fit(as.matrix(x_train), 
+             as.matrix(x_train),
+             epochs = epochs,
+             batch_size = 256,
+             shuffle = TRUE,
+             validation_split = 0.2
+             #validation_data = list(as.matrix(validation_X_continous_std), as.matrix(validation_X_continous_std))
+             )
+  plot(auto_associative)
+  return(list(autoencoder_model = autoencoder_model, input_layer = input_layer, encoder = encoder))
+}
+
+#autoencoder_mse = rep(NA, 5)
+
+#autoencoder_result &lt;- lapply(1:12, function(x) list(autoencoder_model = NA, input_layer = NA, encoder = NA))
+#for(k in 1:1){
+#  train_aem = train_autoencoder(epochs = 100, code_size = 12, training_data_x_std_smote)
+#  autoencoder_stats = evaluate(train_aem$autoencoder_model,
+#                               as.matrix(training_data_x_std_smote),
+#                               as.matrix(training_data_x_std_smote))
+#  autoencoder_mse[12] = autoencoder_stats[&quot;loss&quot;]
+#  autoencoder_result[[12]]$autoencoder_model = train_aem$autoencoder_model
+#  autoencoder_result[[12]]$input_layer = train_aem$input_layer
+#  autoencoder_result[[12]]$encoder = train_aem$encoder
+#}
+#autoencoder_mse</code></pre>
 </div>
 </div>
 

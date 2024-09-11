@@ -71,7 +71,7 @@ Delta_mat <- structure(c(0, 93, 82, 133, 93, 0, 52, 60, 82, 52, 0, 111, 133,60, 
 Delta_mat |> signif(2) # rounds number
 
 # Calculate A matrix
-
+# A = -0.5*delta^2
 A_mat = -0.5 * Delta_mat^2
 A_mat |> signif(2)
 
@@ -329,7 +329,7 @@ Random in results
 
 #### Sammon Mapping
 
-- We downweight larger original distances ($w_{ij} = \frac{1}{\sum_{i<j}\delta_{ij}^2}$)
+- We downweight larger original distances ($w_{ij} = \frac{1}{\delta_{ij}\sum_{i<j}\delta_{ij}}$)
 
 ```{r}
 rm(list = ls())
@@ -361,6 +361,7 @@ aes(label = city), size = 3
   ggtitle("Kingship MDS")  # Main title of the plot
 p
 ```
+
 ## Non-Metric MDS
 
 - In non-metric MDS, we do not preserve the actual dissimilarities, but only the ranks of the dissimularities
@@ -381,6 +382,298 @@ matches exactly the ordering of the dissimilarities.
     - Fit a monotonically-increasing function of configuration distances against the ranks of the dissimilarities
     - Adjust the configuration distances to more closely match the fitted values.
 ## Shepard's Diagram
+
+# Practice Exercises
+
+## Question 1
+
+For this exercise we will be using the cities data that is found in the psych package in R.
+Run the following lines of code to obtain the dissimilarity matrix that we will work with. 
+library(psych)
+data(cities)
+cities
+
+- a)	Using the first 4 (four) cities, ATL, BOS, ORD and DCA. Perform the classical scaling algorithm by first principals to obtain     the principals coordinates. Plot the principal coordinates in 2 dimensions. You can use R to create matrices and perform the        Eigen value decomposition. 
+
+
+```{r}
+rm(list=ls())
+library(ggplot2)
+library(ggrepel)
+library(psych)
+library(psychTools)
+data(cities)
+head(cities)
+
+classical_scaling_first_principals = function(numberOfCities=4, rotateMap = FALSE){
+  
+rotateFactor = -1
+if(!rotateMap){
+  rotateFactor  = 1
+}  
+# Calculate the A matrix
+delta_mat = as.matrix(cities[1:numberOfCities, 1:numberOfCities])
+n = nrow(delta_mat)
+# A = -0.5*sqrt(delta_mat^2)
+A_mat = -0.5*delta_mat^2
+
+
+# Calculate H_mat
+H_mat = diag(1,n) - 1/n*matrix(1,n,n) #%*%t(matrix(1,n,n))
+
+B_mat = H_mat%*%A_mat%*%H_mat
+
+eigen_decom = eigen(B_mat)
+
+# Y = V(eigenvectors) %*% diag(sqrt(eigenvalues))
+
+# Calcualte the princiiapl coordiante Y= V eigen values of B
+
+Y_mat = eigen_decom$vectors %*% diag(sqrt(eigen_decom$values))
+
+
+plot_tbl = Y_mat %>% 
+           as.tibble() %>%
+            mutate(
+              city = colnames(delta_mat)
+            )
+
+p = ggplot(plot_tbl, aes(rotateFactor*V1, rotateFactor*V2))+
+    geom_point(size=3)+
+    ggrepel::geom_text_repel(aes(label=city), size=3)+
+    coord_equal()+
+    xlab("First principal coordinate") +  # Label for the x-axis
+    ylab("Second principal coordinate") +  # Label for the y-axis
+    ggtitle("Classical scaling of US cities")  # Main title of the plot
+p
+}
+classical_scaling_first_principals()
+
+```
+
+
+b)	Use the function cmdscale in R to check check your answer in part (a).
+
+
+```{r}
+delta_mat = as.matrix(cities[1:4, 1:4])
+eigen_decom = cmdscale(delta_mat, k=2, eig = TRUE, list. = TRUE)
+Y_mat = eigen_decom$points
+
+plot_tbl = Y_mat %>% 
+           as.tibble() %>%
+            mutate(
+              city = c("ATL", "BOS","ORD", "DCA")
+            )
+
+p = ggplot(plot_tbl, aes(V1, V2))+
+    geom_point(size=3)+
+    ggrepel::geom_text_repel(aes(label=city), size=3)+
+    coord_equal()+
+    xlab("First principal coordinate") +  # Label for the x-axis
+    ylab("Second principal coordinate") +  # Label for the y-axis
+    ggtitle("Classical scaling of US cities")  # Main title of the plot
+p
+```
+
+c)	Perform the classical scaling algorithm to the entire dissimilarity matrix and obtain the principal coordinates. Plot the resulting coordinates in 2 dimensions. 
+
+```{r}
+classical_scaling_first_principals(11, TRUE)
+```
+
+## Question 2
+
+Question 2
+
+a) 
+- (i) Use the mds() function – in the smacof package – to perform metric multidimensional scaling. Locate the cities in t=2 dimensions, starting with a classical scaling solution as the initial configuration. 
+
+### From First Principles
+
+```{r}
+
+rm(list = ls())
+library(ggplot2)
+library(smacof)
+
+data(cities)
+proximity_matrix = cities
+stress_func = function(y, delta_mat, dim=2){
+  Y_mat = matrix(y, ncol=dim)
+  D_mat = as.matrix(dist(Y_mat))
+  # Identity f function
+  f = delta_mat
+  error_mat = ((D_mat-f)^2)[lower.tri(D_mat)]
+  # constant weight
+  weight_mat = 1/sum(delta_mat[lower.tri(D_mat)]^2)
+  
+  weight_mat*sum(error_mat)
+  
+}
+
+y_vec = cmdscale(proximity_matrix, k =2)
+
+
+min_stress_fun = optim(y_vec, stress_func, delta_mat = proximity_matrix)
+
+Y_mat = matrix(min_stress_fun$par, ncol = 2)
+
+fitted_configs = Y_mat %>%
+                 as.tibble() %>%
+                  mutate(
+                    city = colnames(proximity_matrix)
+                  )
+
+
+ggplot(fitted_configs, aes(-V1,-V2), alpha = 0.5 , color = "blue", size = 10 )+
+      geom_point(size=3) +
+      geom_text_repel(
+       aes(label = city), size = 5
+     ) +
+    labs(x = "First principal component", y = "Second principal component", title = "Distance Least-Square scaling of US cities") +
+    coord_equal()
+
+min_stress_fun$value
+
+
+```
+
+```{r}
+
+n = nrow(proximity_matrix)
+weight_mat = matrix(0, ncol=n, nrow=n)
+constant_weight = 1/sum(proximity_matrix[lower.tri(proximity_matrix)]^2)
+weight_mat[lower.tri(weight_mat)] = constant_weight
+
+metric_mds = mds(proximity_matrix, ndim=2, init = "torgerson", weightmat = weight_mat, type = "ratio")
+fitted_configs_2 = metric_mds$conf %>%
+                 as.tibble() %>%
+                  mutate(
+                    city = colnames(proximity_matrix)
+                  )
+
+ggplot(fitted_configs_2, aes(-1*D1, -1*D2))+
+    geom_point(size=3)+
+    ggrepel::geom_text_repel(aes(label=city), size=3)+
+    coord_equal()+
+    xlab("First principal coordinate") +  # Label for the x-axis
+    ylab("Second principal coordinate") +  # Label for the y-axis
+    ggtitle("Classical scaling of Danish cities")  # Main title of the plot
+```
+
+
+- (ii) Which of the 11 cities has the poorest fit? Explain your answer.
+
+
+
+```{r}
+metric_mds$stress
+metric_mds$spp
+```
+
+Observing the per point stress points we note that SEA is the city with the poorest fit as it has the highest stress point of 33.48%, this means that it has been matched the poorest relative to it's original dissimilarities as it has the highest contribution to the stress value of 0.00206447. Could indicate an outlier or it's dissimilarities with the other cities might be inconsistent with the rest of the data
+
+
+- (iii) Plot the 2D multidimensional scaling configuration and compare this the locations of the cities on a map from the atlas.
+
+From the map below we observe that the the low-dimensional map is a good representation of the Atlas mapping indicating the actual positions of the cities. We further support this with the relavtively low stress value of 0.00206447, indicating that the points in the low-dim have been matched relatively well with their original dissimilarities.
+
+![US Cities Map](US Cities Map.png)
+
+
+b)	Repeat the analysis in part (a) using a random starting solution. How does the different initial configuration change the location of the cities in the 2D configuration?
+
+```{r}
+metric_mds_random = mds(delta = proximity_matrix, ndim=2, init = "random", type = "ratio", weightmat = weight_mat)
+
+
+fitted_configs_random = metric_mds_random$conf %>%
+                 as.tibble() %>%
+                  mutate(
+                    city = colnames(proximity_matrix)
+                  )
+ggplot(fitted_configs_random, aes(-D1,-D2), alpha = 0.5 , color = "blue", size = 10 )+
+      geom_point(size=3) +
+      geom_text_repel(
+       aes(label = city), size = 5
+     ) +
+    labs(x = "First principal component", y = "Second principal component", title = "MDS Scaling of US cities using random Config") +
+    coord_equal()
+```
+
+# Istonic Regression
+
+
+**Isotonic regression** is a type of regression analysis used to fit a non-decreasing (or non-increasing) sequence to a set of data points. It is particularly useful when you believe that the relationship between the predictor and response variables should be monotonic (either always increasing or always decreasing), but you do not want to impose a specific parametric form on this relationship.
+
+### Key Characteristics of Isotonic Regression
+
+1. **Monotonicity Constraint**:
+   - The fitted values must respect a given order, either non-decreasing or non-increasing. For a non-decreasing isotonic regression, if \(x_i \le x_j\), then the fitted value \(\hat{y}_i \le \hat{y}_j\).
+
+2. **Flexibility**:
+   - Unlike linear regression, isotonic regression does not assume a specific functional form (like linearity) between the predictor and the response. It only assumes monotonicity.
+
+3. **Piecewise Constant**:
+   - The fitted model in isotonic regression is piecewise constant, meaning that it can form "steps" that jump up or down but do not decrease (for a non-decreasing model).
+
+### Applications
+
+- **Dose-response relationships** in medical studies where higher doses are expected to produce higher responses.
+- **Calibration** of machine learning models where monotonicity is a natural assumption.
+- **Quality control** where certain processes are expected to improve or degrade over time.
+
+### Mathematical Formulation
+
+Given a set of data points \((x_1, y_1), (x_2, y_2), \ldots, (x_n, y_n)\), isotonic regression aims to find values \(\hat{y}_1, \hat{y}_2, \ldots, \hat{y}_n\) such that:
+
+1. \(\hat{y}_i \le \hat{y}_{i+1}\) for all \(i = 1, 2, \ldots, n-1\) (for a non-decreasing regression).
+2. The sum of squared differences between the observed and fitted values is minimized:
+   \[
+   \min \sum_{i=1}^{n} (y_i - \hat{y}_i)^2
+   \]
+
+### Example in R
+
+Here’s how you can perform isotonic regression in R using the `isoreg` function from base R:
+
+```r
+# Load the Iso package
+library(Iso)
+
+# Sample data
+x <- c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+y <- c(2.3, 2.1, 3.5, 3.8, 5.2, 5.5, 6.3, 6.8, 7.0, 8.2)
+
+# Perform isotonic regression using the pava function
+isotonic_model <- pava(y)
+
+# Extract fitted values
+fitted_values <- isotonic_model
+
+# Plot the original data and the fitted isotonic regression
+plot(x, y, main = "Isotonic Regression using PAVA", xlab = "x", ylab = "y", pch = 19)
+lines(x, fitted_values, col = "red", type = "S")
+```r
+
+### Explanation
+
+1. **Sample Data**:
+   - `x` and `y` are the vectors containing the predictor and response variables, respectively.
+
+2. **Perform Isotonic Regression**:
+   - `isoreg(x, y)`: Fits an isotonic regression model to the data.
+
+3. **Extract Fitted Values**:
+   - `isotonic_model$yf`: Gets the fitted values from the isotonic regression model.
+
+4. **Plot the Results**:
+   - The original data points are plotted as black dots.
+   - The fitted isotonic regression line is plotted in red.
+
+This example demonstrates how to perform and visualize isotonic regression in R. The `isoreg` function ensures that the fitted values are non-decreasing and minimizes the sum of squared differences between the observed and fitted values.
+
 
 # Appendix
 

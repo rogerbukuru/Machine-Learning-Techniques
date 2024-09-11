@@ -1,0 +1,209 @@
+---
+title: "Principal Component Analysis"
+author: "Roger Bukuru"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Principal Component Analysis as Special case of Reduced Rank Regression
+
+```{r, echo= TRUE}
+rm(list = ls())
+library(tidyverse)
+library(dplyr)
+library(rrr)
+library(ggplot2)
+library(scatterplot3d)
+library(plotly)
+
+data("iris")
+
+iris_data = iris %>%
+       as.tibble()  
+head(iris)
+
+
+X  = iris_data[,1:4]
+X = t(X)
+mux = apply(X, 1, mean)
+# Normalize data points
+X_c = apply(X, 1, function(X)(X-mean(X)) )
+n = nrow(X)
+
+```
+
+
+## PCA as special case of RRR from first principals using Eigendecomposition (Spectral decomposition)
+
+
+```{r, echo = TRUE}
+
+
+sigmaxx = cov(X_c) 
+decomp = eigen(sigmaxx)
+
+eigenvalues    = decomp$values
+eigenvectors   = decomp$vectors
+total_variance = sum(eigenvalues)
+variance_explained = eigenvalues/total_variance
+
+
+# We proceed to perform cross validation by selecting different ranks 
+
+V = eigenvectors
+A = V
+B = t(V)
+
+# Rank 1
+A1 = matrix(V[,1], ncol = 1, byrow = TRUE)
+B1 = matrix(B[1,], ncol = 4, byrow = TRUE)
+C1 = A1%*%B1
+#pca_scores_1 = t(tcrossprod(C1,X_c))
+x_1_reconstructed = t(mux + C1%*%t(X_c)) # ?
+lse_1 <- sum((t(X) - x_1_reconstructed)^2)
+
+# Rank 2
+A2 = matrix(V[,1:2], ncol = 2, byrow = FALSE)
+B2 = matrix(B[1:2,], ncol = 4, byrow = FALSE)
+C2 = A2%*%B2
+#pca_scores_2 = t(tcrossprod(C1,X_c))
+x_2_reconstructed = t(mux+tcrossprod(C2,X_c))
+lse_2 <- sum((t(X) - x_2_reconstructed)^2)
+
+# Rank 3
+A3 = matrix(V[,1:3], ncol = 3, byrow = FALSE)
+B3 = matrix(B[1:3,], ncol = 4, byrow = FALSE)
+C3 = A3%*%B3
+#pca_scores_3 = t(tcrossprod(C1,X_c))
+x_3_reconstructed = t(mux+tcrossprod(C3,X_c))
+lse_3 <- sum((t(X) - x_3_reconstructed)^2)
+
+# Full Rank
+C = A%*%B
+
+col_names = colnames(X_c)
+colnames(C) = col_names
+pca_scores = t(tcrossprod(C,X_c))
+x_reconstructed = t(mux+tcrossprod(C,X_c))
+x_og = t(X)
+lse <- sum((t(X) - x_reconstructed)^2)
+colnames(x_reconstructed) = col_names
+
+tcross
+```
+
+## PCA as special case of RRR from first principals using SVD approach
+
+```{r, echo=TRUE}
+
+decomp2        = svd(X_c)
+eigenvalues    = (decomp2$d^2)/(n-1)
+eigenvectors   = decomp2$v
+total_variance_svd = sum(eigenvalues)
+variance_explained_svd = eigenvalues/total_variance_svd
+
+# We proceed to perform cross validation by selecting different ranks 
+
+V = eigenvectors
+A = V
+B = t(V)
+  
+
+# Rank 1
+A1 = matrix(V[,1], ncol = 1, byrow = TRUE)
+B1 = matrix(B[1,], ncol = 4, byrow = TRUE)
+C1_svd = A1%*%B1
+x_1_reconstructed = t(mux+tcrossprod(C1_svd,X_c))
+lse_1_svd <- sum((t(X) - x_1_reconstructed)^2)
+
+
+# Rank 2
+A2 = matrix(V[,1:2], ncol = 2, byrow = FALSE)
+B2 = matrix(B[1:2,], ncol = 4, byrow = FALSE)
+C2_svd = A2%*%B2
+x_2_reconstructed = t(mux+tcrossprod(C2_svd,X_c))
+lse_2_svd <- sum((t(X) - x_2_reconstructed)^2)
+
+# Rank 3
+A3 = matrix(V[,1:3], ncol = 3, byrow = FALSE)
+B3 = matrix(B[1:3,], ncol = 4, byrow = FALSE)
+C3_svd = A3%*%B3
+x_3_reconstructed = t(mux+tcrossprod(C3_svd,X_c))
+lse_3_svd <- sum((t(X) - x_3_reconstructed)^2)
+
+# Full Rank
+C_svd = A%*%B
+
+col_names = colnames(X_c)
+colnames(C) = col_names
+x_reconstructed = t(mux+tcrossprod(C_svd,X_c))
+lse_svd <- sum((t(X) - x_reconstructed)^2)
+colnames(x_reconstructed) = col_names  
+
+    
+
+
+```
+
+### PCA as special case of RRR using R package rrr
+
+```{r, echo = TRUE}
+# 
+rrr_model = rrr(X_c, X_c, k = 0, type="pca", rank = 2)
+
+summary(rrr_model)
+
+rrr_model$PC
+
+rrr_model$C == C2
+
+```
+
+
+
+## Classic PCA
+
+```{r, echo = TRUE}
+classic_pca = prcomp(X_c, retx = TRUE, center = FALSE, scale. = FALSE)
+
+
+pca_scores = classic_pca$x%>% # Linear combination of centered data and eigenvectors
+             as.tibble()
+pca_classic_variance_explained = (classic_pca$sdev^2)/sum(classic_pca$sdev^2)
+
+pca_classic_variance_explained_df = data.frame(`PC` = 1:length(pca_classic_variance_explained), `Var Explained` = pca_classic_variance_explained) %>% as.tibble()
+
+summary(classic_pca)
+# Plot Scree Plot
+ggplot(pca_classic_variance_explained_df, aes(x = PC, y = Var.Explained)) +
+  geom_point() + # Add points
+  geom_line() + # Connect points with lines
+  xlab("Principal Component") +
+  ylab("Proportion of Variance Explained") +
+  ggtitle("Scree Plot") +
+  theme_minimal() # Using a minimal theme for aesthetics
+
+# Plot PCA Scores
+ggplot(data = pca_scores, mapping = aes(x = PC1, y = PC2))+
+      geom_point()
+
+scatterplot3d(x= pca_scores$PC1, y = pca_scores$PC2, z = pca_scores$PC3, main="Principal Components", xlab="PC1", ylab="PC2", zlab="PC3", pch=19, color="blue")
+
+
+fig <- plot_ly(x = ~pca_scores$PC1, y = ~pca_scores$PC2, z = ~pca_scores$PC3, type = 'scatter3d', mode = 'markers',
+               marker = list(size = 5, color = 'blue'))
+
+# Customize the layout
+fig <- fig %>% layout(title = '3D Scatter Plot',
+                      scene = list(xaxis = list(title = 'PC1'),
+                                   yaxis = list(title = 'PC2'),
+                                   zaxis = list(title = 'PC3')))
+
+# Render the plot
+fig
+
+```

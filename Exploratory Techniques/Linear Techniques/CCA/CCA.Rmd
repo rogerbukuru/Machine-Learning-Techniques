@@ -1,0 +1,214 @@
+---
+title: "CCA"
+author: "Roger Bukuru"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## CCA
+
+```{r}
+library(assertthat)
+library(tidyverse)
+library(ggplot2)
+#==============================================================================
+# Load the iris dataset
+data(iris)
+
+# View the first few rows of the dataset
+head(iris)
+
+
+# Create your X and Y variables from the dataset
+X = iris %>% 
+  select(Sepal.Length, Sepal.Width) %>%
+  scale()
+X %>% head()
+
+Y = iris %>%
+  select(Petal.Length, Petal.Width) %>%
+  scale()
+
+Y %>% head()
+
+# Use Cancor to estimate your canonical correlations 
+cc_results <- cancor(X,Y)
+cc_results
+
+str(cc_results)
+
+cc_results$xcoef
+
+cc_results$ycoef
+
+cc_results$cor
+
+
+# Estimate your canonical variates U=CC1_Y and V=CC1_X
+CC1_X = as.matrix(X) %*% cc_results$xcoef[, 1]
+CC1_Y = as.matrix(Y) %*% cc_results$ycoef[, 1]
+
+# Estimate your canonical variates U=CC2_Y and V=CC2_X
+CC2_X =as.matrix(X) %*% cc_results$xcoef[, 2]
+CC2_Y =as.matrix(Y) %*% cc_results$ycoef[, 2]
+
+# Perform the correlation analysis between coefficient 1 for X and Y
+cor(CC1_X,CC1_Y)
+
+assertthat::are_equal(cc_results$cor[1], 
+                      cor(CC1_X,CC1_Y)[1])
+
+# Perform the correlation analysis between coefficient 2 for X and Y
+
+cor(CC2_X, CC2_Y)
+
+assertthat::are_equal(cc_results$cor[2], 
+                      cor(CC2_X,CC2_Y)[1])
+
+# Mutate the penguin dataset with the coefficient from U and V
+cca_df = iris %>% 
+  mutate(CC1_X=CC1_X,
+         CC1_Y=CC1_Y,
+         CC2_X=CC2_X,
+         CC2_Y=CC2_Y)
+
+# Let's decide the coefficient to use in our linear combination using plot
+
+# Scatter plot for coefficient 1 of X and Y
+cca_df %>% 
+  ggplot(aes(x=CC1_X,y=CC1_Y))+
+  geom_point()
+
+# Scatter plot for coefficient 2 of X and Y
+cca_df %>% 
+  ggplot(aes(x=CC2_X,y=CC2_Y))+
+  geom_point()
+```
+
+
+### Summary of Canonical Correlation Analysis (CCA) and Detailed Explanation of the Code
+
+### Canonical Correlation Analysis (CCA)
+
+**What is CCA?**
+Canonical Correlation Analysis (CCA) is a multivariate statistical technique used to understand the relationships between two sets of variables. It identifies and measures the associations between two multivariate data sets.
+
+**How does CCA work?**
+- **Step 1**: Given two sets of variables, \(X\) and \(Y\), CCA seeks linear combinations of these variables that are maximally correlated with each other.
+- **Step 2**: These linear combinations are called canonical variates. The first pair of canonical variates captures the highest possible correlation between the two sets, the second pair captures the next highest, and so on.
+- **Step 3**: The canonical correlation coefficients are the correlations between the pairs of canonical variates.
+
+**Mathematical Formulation:**
+For \(X = (X_1, X_2, ..., X_r)\) and \(Y = (Y_1, Y_2, ..., Y_s)\),
+- Canonical variate for \(X\): \( \xi_j = g_j^T X \)
+- Canonical variate for \(Y\): \( \omega_j = h_j^T Y \)
+- The pairs \((\xi_j, \omega_j)\) are chosen to maximize the correlation \( \rho_j = \text{corr}(\xi_j, \omega_j) \).
+
+### Steps and Details in the Code
+
+**1. Load and Prepare Data**
+```r
+library(assertthat)
+data(iris)
+head(iris)
+```
+- Load the iris dataset.
+- Inspect the first few rows of the dataset.
+
+**2. Create \(X\) and \(Y\) Variables**
+```r
+X = iris %>% select(Sepal.Length, Sepal.Width) %>% scale()
+Y = iris %>% select(Petal.Length, Petal.Width) %>% scale()
+```
+- Create \(X\) and \(Y\) by selecting relevant columns and scaling the data.
+
+**3. Perform Canonical Correlation Analysis**
+```r
+cc_results <- cancor(X, Y)
+cc_results
+str(cc_results)
+```
+- Perform CCA using the `cancor` function.
+- View the results and structure of the output.
+
+**4. Extract Canonical Coefficients and Correlations**
+```r
+cc_results$xcoef
+cc_results$ycoef
+cc_results$cor
+```
+- Extract canonical coefficients for \(X\) and \(Y\).
+- Extract canonical correlation coefficients.
+
+**5. Estimate Canonical Variates**
+```r
+CC1_X = as.matrix(X) %*% cc_results$xcoef[, 1]
+CC1_Y = as.matrix(Y) %*% cc_results$ycoef[, 1]
+CC2_X = as.matrix(X) %*% cc_results$xcoef[, 2]
+CC2_Y = as.matrix(Y) %*% cc_results$ycoef[, 2]
+```
+- Compute the first and second canonical variates for \(X\) and \(Y\).
+
+**6. Perform Correlation Analysis**
+```r
+cor(CC1_X, CC1_Y)
+assertthat::are_equal(cc_results$cor[1], cor(CC1_X, CC1_Y)[1])
+cor(CC2_X, CC2_Y)
+assertthat::are_equal(cc_results$cor[2], cor(CC2_X, CC2_Y)[1])
+```
+- Correlate the canonical variates and compare with the canonical correlations from `cancor`.
+
+**7. Augment Original Data with Canonical Variates**
+```r
+cca_df = iris %>% 
+  mutate(CC1_X = CC1_X,
+         CC1_Y = CC1_Y,
+         CC2_X = CC2_X,
+         CC2_Y = CC2_Y)
+```
+- Add the canonical variates to the original iris dataset for further analysis.
+
+**8. Plot Canonical Variates**
+```r
+cca_df %>% 
+  ggplot(aes(x = CC1_X, y = CC1_Y)) +
+  geom_point()
+
+cca_df %>% 
+  ggplot(aes(x = CC2_X, y = CC2_Y)) +
+  geom_point()
+```
+- Plot the canonical variates to visualize their relationships.
+
+### Explanation of the Code
+
+1. **Loading Libraries and Data**:
+   - Libraries `e1071`, `ggplot2`, `tidyverse`, and `dplyr` are loaded to handle data manipulation, plotting, and SVM modeling.
+   - The iris dataset is loaded and inspected.
+
+2. **Creating \(X\) and \(Y\) Variables**:
+   - Two sets of variables are created from the iris dataset, scaled for analysis.
+
+3. **Performing CCA**:
+   - The `cancor` function performs CCA, providing canonical coefficients and correlations.
+
+4. **Extracting Canonical Coefficients and Correlations**:
+   - The canonical coefficients for \(X\) and \(Y\) and the canonical correlations are extracted and inspected.
+
+5. **Estimating Canonical Variates**:
+   - Canonical variates are computed by multiplying the original scaled data with the canonical coefficients.
+
+6. **Performing Correlation Analysis**:
+   - Correlations between the canonical variates are calculated and validated against the canonical correlations from the `cancor` function.
+
+7. **Augmenting Data**:
+   - The canonical variates are added to the original dataset for further analysis and plotting.
+
+8. **Plotting Canonical Variates**:
+   - Scatter plots of the canonical variates provide a visual representation of the relationships identified by CCA.
+
+This detailed summary explains CCA's principles and breaks down the provided R code, describing what each part does and how it contributes to the overall analysis.
